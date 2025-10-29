@@ -4,6 +4,7 @@
 #include <son8/cyrillic/alias.hxx>
 #include <son8/cyrillic/decoded.hxx>
 #include <son8/cyrillic/encoded.hxx>
+#include <son8/cyrillic/error.hxx>
 
 namespace son8::cyrillic {
 
