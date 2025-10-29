@@ -23,9 +23,9 @@ namespace son8::cyrillic {
         Encoded &operator=( Encoded &&move ) = delete;
         Encoded &operator=( Encoded const &copy ) = delete;
         // getters
-        auto ref( ) const -> Ref;
-        auto ptr( ) const -> Ptr;
-        auto out( ) & -> Out &;
+        auto ref( ) const -> Ref; // read-only access via string_view
+        auto ptr( ) const -> Ptr; // pointer access to underlying data
+        auto out( ) & -> Out &;   // mutable reference for modification
         // conversions
         operator Ref( ) const;
     };
