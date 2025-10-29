@@ -20,7 +20,7 @@ namespace son8::cyrillic {
             return Error::None;
         }
 
-        void error_throw( Error code ) { if ( code != Error::None ) throw code; }
+        void error_throw( Error code ) { if ( code != Error::None ) throw Exception{ code }; }
 
         constexpr auto error_size( ) -> unsigned { return static_cast< unsigned >( Error::Size_ ); }
 
