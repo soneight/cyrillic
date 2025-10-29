@@ -5,15 +5,19 @@
 #include <string_view>
 
 namespace son8::cyrillic {
-    // private section
+    // private implementation
     namespace {
 
+        thread_local Language Language_{ Language::None };
+
         auto encode_impl( Encoded::Out &out, Encoded::In in ) -> Error {
-            return Error::Language;
+            if ( this_thread::state_language( ) == Language::None ) return Error::Language;
+            return Error::None;
         }
 
         auto decode_impl( Decoded::Out &out, Decoded::In in ) -> Error {
-            return Error::Language;
+            if ( this_thread::state_language( ) == Language::None ) return Error::Language;
+            return Error::None;
         }
 
         void error_throw( Error code ) { if ( code != Error::None ) throw code; }
@@ -25,8 +29,14 @@ namespace son8::cyrillic {
             "not an error",
             "language not set",
         }};
-
     } // anonymous namespace
+    // state implementation
+    namespace this_thread {
+        // state setters
+        void state( Language language ) noexcept { Language_ = language; }
+        // state getters
+        auto state_language( ) noexcept -> Language { return Language_; }
+    }
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
     auto Encoded::out( ) & -> Out & { return out_; }
@@ -39,6 +49,13 @@ namespace son8::cyrillic {
         assert( ec < error_size( ) );
         return Error_Messages_[ec];
     }
+    // exception implementation
+    Exception::Exception( Error code ) noexcept : code_{ code } { assert( code != Error::None ); }
+    auto Exception::code( ) const -> Error { return code_; }
+    auto Exception::what( ) const noexcept -> char const * {
+        return error_message( code( ) ).data( );
+    }
+
 } // namespace
 
 // Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
