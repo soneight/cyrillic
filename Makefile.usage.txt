@@ -1,0 +1,6 @@
+usage:
+    usage: print this (default on empty)
+    cmake: configure cmake root project using ninja generator
+    ninja: build cmake root project using ninja generator
+    clean: remove build directory
+
