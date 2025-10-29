@@ -26,17 +26,17 @@ namespace son8::cyrillic {
             "language not set",
         }};
 
-        auto error_message( Error code ) -> std::string_view {
-            auto ec = static_cast< unsigned >( code );
-            assert( ec < error_size( ) );
-            return Error_Messages_[ec];
-        }
-
     } // anonymous namespace
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
+
+    auto error_message( Error code ) -> std::string_view {
+        auto ec = static_cast< unsigned >( code );
+        assert( ec < error_size( ) );
+        return Error_Messages_[ec];
+    }
 } // namespace
 
 // Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
