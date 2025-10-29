@@ -8,6 +8,7 @@ namespace son8::cyrillic {
     enum class Error : unsigned {
         None,
         Language,
+        InvalidWord,
         // !IMPORTANT must be last element
         Size_,
     };
