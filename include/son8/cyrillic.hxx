@@ -5,6 +5,8 @@
 #include <son8/cyrillic/decoded.hxx>
 #include <son8/cyrillic/encoded.hxx>
 #include <son8/cyrillic/error.hxx>
+#include <son8/cyrillic/exception.hxx>
+#include <son8/cyrillic/state.hxx>
 
 namespace son8::cyrillic {
 
