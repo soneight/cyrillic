@@ -29,9 +29,11 @@ namespace son8::cyrillic {
     } // anonymous namespace
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
+    auto Encoded::out( ) & -> Out & { return out_; }
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
-
+    auto Decoded::out( ) & -> Out & { return out_; }
+    // error implementation
     auto error_message( Error code ) -> std::string_view {
         auto ec = static_cast< unsigned >( code );
         assert( ec < error_size( ) );
