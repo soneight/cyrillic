@@ -4,6 +4,4 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 
 add_library( ${SON8PROJ} )
 target_sources( ${SON8PROJ} PRIVATE cyrillic.cxx )
-if ( MSVC )
-    target_compile_options( ${SON8PROJ} PRIVATE /utf-8 )
-endif( )
+target_compile_options( ${SON8PROJ} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/permissive- /utf-8> )
