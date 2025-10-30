@@ -76,8 +76,27 @@ namespace son8::cyrillic {
             return Error::None;
         }
 
+        using ArrayViewBykva = std::array< Decoded::Ref, 8 >;
+        constexpr ArrayViewBykva const Bykva_{{
+            u"жчщюяэёы", // ru jj lower
+            u"ЖЧЩЮЯЭЁЫ", // ru jj upper
+            u"ъыэёєіїґ", // ru jx lower
+            u"ЪЫЭЁЄІЇҐ", // ru jx upper
+            u"жчщюяєїі", // ua jj lower
+            u"ЖЧЩЮЯЄЇІ", // ua jj upper
+            u"ъыэёєіїґ", // ua jx lower
+            u"ЪЫЭЁЄІЇҐ", // ua jx upper
+        }};
+
+        [[nodiscard]]
         auto decode_impl( Decoded::Out &out, Decoded::In in ) -> Error {
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
+
+            Decoded::Out tmp;
+
+
+            tmp.shrink_to_fit( );
+            out = std::move( tmp );
             return Error::None;
         }
 
