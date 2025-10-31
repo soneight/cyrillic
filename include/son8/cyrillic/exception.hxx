@@ -12,7 +12,7 @@ namespace son8::cyrillic {
     public:
         Exception( Error code_ ) noexcept;
        ~Exception( ) = default;
-        auto code( ) const -> Error;
+        auto code( ) const noexcept -> Error;
         auto what( ) const noexcept -> char const * override;
     };
 

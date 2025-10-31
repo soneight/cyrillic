@@ -13,6 +13,7 @@ namespace son8::cyrillic {
 
         thread_local Language Language_{ Language::None };
         // encode implementation and it helpers
+        // -- helpers
         constexpr Encoded::In const Letters_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
         constexpr Encoded::In const Letters_Mixed_{ u"ЁЄІЇЪЫЭъыэёєіїҐґ" };
         template< unsigned Size >
@@ -39,7 +40,8 @@ namespace son8::cyrillic {
         }};
         static_assert( Letters_Mixed_.size( ) == 16 );
         constexpr std::bitset< Letters_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
-
+        // -- implementation
+        [[nodiscard]]
         auto encode_impl( Encoded::Out &out, Encoded::In in ) -> Error {
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
             Encoded::Out tmp;
@@ -75,9 +77,105 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
-
+        // decode implementation and it helpers
+        // -- helpers
+        using ArrayViewDecodedLetter = std::array< Decoded::In, 4 >;
+        // TODO maybe do also 8 to map 1to1, and change order of elements for
+        //      most popular ones for each entry to improve find performances
+        constexpr ArrayViewDecodedLetter const DecodeLetter_{{
+            "zcwyaeiu",
+            "ZCWYAEIU",
+            "quzveiyg",
+            "VEIYQUZG",
+        }};
+        using ArrayViewDecodedSumvol = std::array< Decoded::Ref, 8 >;
+        constexpr ArrayViewDecodedSumvol const DecodeSumvol_{{
+           u"жчщюяэёы", // ru jj lower
+           u"ЖЧЩЮЯЭЁЫ", // ru jj upper
+           u"ъыэёєіїґ", // ru jx lower
+           u"ЁЄІЇЪЫЭҐ", // ru jx upper
+           u"жчщюяєїі", // ua jj lower
+           u"ЖЧЩЮЯЄЇІ", // ua jj upper
+           u"ъыэёєіїґ", // ua jx lower
+           u"ЁЄІЇЪЫЭҐ", // ua jx upper
+        }};
+        enum class DecodedState : unsigned {
+            Defaults,
+            Lower_JJ,
+            Upper_JJ,
+            Lower_JX,
+            Upper_JX,
+            Pusher_8,
+            Error_DS,
+        };
+        // -- implementation
+        [[nodiscard]]
         auto decode_impl( Decoded::Out &out, Decoded::In in ) -> Error {
+            using State = DecodedState;
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
+            Decoded::Out tmp;
+            auto ali = 0; // array letter index
+            auto const asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
+            auto state = DecodedState::Defaults;
+            // lambdas
+            auto process_defaults = [&tmp]( auto byte ) -> State {
+                if ( byte == 'j' ) return State::Lower_JJ;
+                if ( byte == 'J' ) return State::Upper_JJ;
+                Decoded::In trans{ "ABCDEFGHKLMNOPQRSTUVWYZabcdefghklmnopqrstuvwyz" };
+                Decoded::Ref repl{u"АБЦДЕФГХКЛМНОПЬРСТИВШУЗабцдефгхклмнопьрстившуз" };
+
+                auto it = std::lower_bound( trans.begin( ), trans.end( ), byte );
+                if ( it == trans.end( ) || *it != byte ) return State::Error_DS;
+
+                auto index = std::distance( trans.begin( ), it );
+                tmp.push_back( repl[index] );
+                return State::Defaults;
+            };
+            auto process_lower_jj = [&ali]( auto byte ) -> State {
+                if ( byte == 'x' ) return State::Lower_JX;
+                ali = 0;
+                return State::Pusher_8;
+            };
+            auto process_upper_jj = [&ali]( auto byte ) -> State {
+                if ( byte == 'X' ) return State::Upper_JX;
+                ali = 1;
+                return State::Pusher_8;
+            };
+            auto process_lower_jx = [&ali]( ) -> State {
+                ali = 2;
+                return State::Pusher_8;
+            };
+            auto process_upper_jx = [&ali]( ) -> State {
+                ali = 3;
+                return State::Pusher_8;
+            };
+            auto pusher_8 = [&ali,asi,&tmp]( auto byte ) -> State {
+                auto &searched = DecodeLetter_[ali];
+                auto beg = searched.begin( );
+                auto end = searched.end( );
+                auto it = std::find( beg, end, byte );
+                if ( it == end ) return State::Error_DS;
+                auto &replaced = DecodeSumvol_[ali + asi];
+                tmp.push_back( replaced[std::distance(beg, it)] );
+                return State::Defaults;
+            };
+            // process
+            for ( auto byte : in ) {
+                switch ( state ) {
+                    case State::Defaults: state = process_defaults( byte ); break;
+                    case State::Lower_JJ: state = process_lower_jj( byte ); break;
+                    case State::Upper_JJ: state = process_upper_jj( byte ); break;
+                    case State::Lower_JX: state = process_lower_jx( ); break;
+                    case State::Upper_JX: state = process_upper_jx( ); break;
+                    case State::Pusher_8: assert( false && "should not ever reach this" ); [[fallthrough]];
+                    case State::Error_DS: [[fallthrough]];
+                    default: return Error::InvalidByte;
+                }
+                if ( state == State::Pusher_8 ) state = pusher_8( byte );
+            }
+            // return
+            tmp.shrink_to_fit( );
+            out = std::move( tmp );
             return Error::None;
         }
 
@@ -85,11 +183,12 @@ namespace son8::cyrillic {
 
         constexpr auto error_size( ) -> unsigned { return static_cast< unsigned >( Error::Size_ ); }
 
-        using ArrayViewError = std::array< std::string_view,  error_size( ) >;
+        using ArrayViewError = std::array< char const * ,  error_size( ) >;
         ArrayViewError Error_Messages_{{
             "not an error",
             "language not set",
             "invalid word",
+            "invalid byte",
         }};
     } // anonymous namespace
     // state implementation
@@ -106,17 +205,15 @@ namespace son8::cyrillic {
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
     auto Decoded::out( ) & -> Out & { return out_; }
     // error implementation
-    auto error_message( Error code ) -> std::string_view {
+    auto error_message( Error code ) noexcept -> char const * {
         auto ec = static_cast< unsigned >( code );
         assert( ec < error_size( ) );
         return Error_Messages_[ec];
     }
     // exception implementation
     Exception::Exception( Error code ) noexcept : code_{ code } { assert( code != Error::None ); }
-    auto Exception::code( ) const -> Error { return code_; }
-    auto Exception::what( ) const noexcept -> char const * {
-        return error_message( code( ) ).data( );
-    }
+    auto Exception::code( ) const noexcept -> Error { return code_; }
+    auto Exception::what( ) const noexcept -> char const * { return error_message( code( ) ); }
 
 } // namespace
 
