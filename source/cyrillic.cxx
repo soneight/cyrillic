@@ -80,22 +80,24 @@ namespace son8::cyrillic {
         // decode implementation and it helpers
         // -- helpers
         using ArrayViewDecodedLetter = std::array< Decoded::In, 4 >;
+        // TODO maybe do also 8 to map 1to1, and change order of elements for
+        //      most popular ones for each entry to improve find performances
         constexpr ArrayViewDecodedLetter const DecodeLetter_{{
-             "zcwyaeiu",
-             "ZCWYAEIU",
-             "quzveiyg",
-             "VEIYQUZG",
+            "zcwyaeiu",
+            "ZCWYAEIU",
+            "quzveiyg",
+            "VEIYQUZG",
         }};
         using ArrayViewDecodedSumvol = std::array< Decoded::Ref, 8 >;
         constexpr ArrayViewDecodedSumvol const DecodeSumvol_{{
-            u"жчщюяэёы", // ru jj lower
-            u"ЖЧЩЮЯЭЁЫ", // ru jj upper
-            u"ъыэёєіїґ", // ru jx lower
-            u"ЁЄІЇЪЫЭҐ", // ru jx upper
-            u"жчщюяєїі", // ua jj lower
-            u"ЖЧЩЮЯЄЇІ", // ua jj upper
-            u"ъыэёєіїґ", // ua jx lower
-            u"ЁЄІЇЪЫЭҐ", // ua jx upper
+           u"жчщюяэёы", // ru jj lower
+           u"ЖЧЩЮЯЭЁЫ", // ru jj upper
+           u"ъыэёєіїґ", // ru jx lower
+           u"ЁЄІЇЪЫЭҐ", // ru jx upper
+           u"жчщюяєїі", // ua jj lower
+           u"ЖЧЩЮЯЄЇІ", // ua jj upper
+           u"ъыэёєіїґ", // ua jx lower
+           u"ЁЄІЇЪЫЭҐ", // ua jx upper
         }};
         enum class DecodedState : unsigned {
             Defaults,
@@ -113,7 +115,7 @@ namespace son8::cyrillic {
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
             Decoded::Out tmp;
             auto ali = 0; // array letter index
-            auto asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
+            auto const asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
             auto state = DecodedState::Defaults;
             // lambdas
             auto process_defaults = [&tmp]( auto byte ) -> State {
@@ -147,7 +149,7 @@ namespace son8::cyrillic {
                 ali = 3;
                 return State::Pusher_8;
             };
-            auto pusher_8 = [ali,asi,&tmp]( auto byte ) -> State {
+            auto pusher_8 = [&ali,asi,&tmp]( auto byte ) -> State {
                 auto &searched = DecodeLetter_[ali];
                 auto beg = searched.begin( );
                 auto end = searched.end( );
@@ -165,7 +167,7 @@ namespace son8::cyrillic {
                     case State::Upper_JJ: state = process_upper_jj( byte ); break;
                     case State::Lower_JX: state = process_lower_jx( ); break;
                     case State::Upper_JX: state = process_upper_jx( ); break;
-                    case State::Pusher_8: assert( false && "shold not ever reach this" ); [[fallthrough]];
+                    case State::Pusher_8: assert( false && "should not ever reach this" ); [[fallthrough]];
                     case State::Error_DS: [[fallthrough]];
                     default: return Error::InvalidByte;
                 }
