@@ -13,6 +13,7 @@ namespace son8::cyrillic {
 
         thread_local Language Language_{ Language::None };
         // encode implementation and it helpers
+        // -- helpers
         constexpr Encoded::In const Letters_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
         constexpr Encoded::In const Letters_Mixed_{ u"ЁЄІЇЪЫЭъыэёєіїҐґ" };
         template< unsigned Size >
@@ -39,7 +40,7 @@ namespace son8::cyrillic {
         }};
         static_assert( Letters_Mixed_.size( ) == 16 );
         constexpr std::bitset< Letters_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
-
+        // -- implementation
         auto encode_impl( Encoded::Out &out, Encoded::In in ) -> Error {
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
             Encoded::Out tmp;
@@ -75,6 +76,8 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
+        // decode implementation and it helpers
+        // -- helpers
         using ArrayViewDecodedLetter = std::array< Decoded::In, 4 >;
         constexpr ArrayViewDecodedLetter const DecodeLetter_{{
              "zcwyaeiu",
@@ -82,7 +85,6 @@ namespace son8::cyrillic {
              "quzveiyg",
              "VEIYQUZG",
         }};
-
         using ArrayViewDecodedSumvol = std::array< Decoded::Ref, 8 >;
         constexpr ArrayViewDecodedSumvol const DecodeSumvol_{{
             u"жчщюяэёы", // ru jj lower
@@ -103,7 +105,7 @@ namespace son8::cyrillic {
             Push_8,
             Error,
         };
-
+        // -- implementation
         [[nodiscard]]
         auto decode_impl( Decoded::Out &out, Decoded::In in ) -> Error {
             using State = DecodedState;
@@ -112,7 +114,7 @@ namespace son8::cyrillic {
             auto ali = 0; // array letter index
             auto asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
             auto state = DecodedState::Default;
-
+            // lambdas
             auto process_default = [&tmp]( auto byte ) -> State {
                 if ( byte == 'j' ) return State::Process_Lower_J;
                 if ( byte == 'J' ) return State::Process_Upper_J;
@@ -154,7 +156,7 @@ namespace son8::cyrillic {
                 tmp.push_back( replaced[std::distance(beg, it)] );
                 return State::Default;
             };
-
+            // process
             for ( auto byte : in ) {
                 switch ( state ) {
                     case State::Default: state = process_default( byte ); break;
@@ -167,7 +169,7 @@ namespace son8::cyrillic {
                     default: return Error::InvalidWord;
                 }
             }
-
+            // return
             tmp.shrink_to_fit( );
             out = std::move( tmp );
             return Error::None;
@@ -177,11 +179,12 @@ namespace son8::cyrillic {
 
         constexpr auto error_size( ) -> unsigned { return static_cast< unsigned >( Error::Size_ ); }
 
-        using ArrayViewError = std::array< std::string_view,  error_size( ) >;
+        using ArrayViewError = std::array< char const * ,  error_size( ) >;
         ArrayViewError Error_Messages_{{
             "not an error",
             "language not set",
             "invalid word",
+            "invalid byte",
         }};
     } // anonymous namespace
     // state implementation
@@ -198,17 +201,15 @@ namespace son8::cyrillic {
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
     auto Decoded::out( ) & -> Out & { return out_; }
     // error implementation
-    auto error_message( Error code ) -> std::string_view {
+    auto error_message( Error code ) noexcept -> char const * {
         auto ec = static_cast< unsigned >( code );
         assert( ec < error_size( ) );
         return Error_Messages_[ec];
     }
     // exception implementation
     Exception::Exception( Error code ) noexcept : code_{ code } { assert( code != Error::None ); }
-    auto Exception::code( ) const -> Error { return code_; }
-    auto Exception::what( ) const noexcept -> char const * {
-        return error_message( code( ) ).data( );
-    }
+    auto Exception::code( ) const noexcept -> Error { return code_; }
+    auto Exception::what( ) const noexcept -> char const * { return error_message( code( ) ); }
 
 } // namespace
 
