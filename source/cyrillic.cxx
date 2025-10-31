@@ -75,25 +75,98 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
+        using ArrayViewDecodedLetter = std::array< Decoded::In, 4 >;
+        constexpr ArrayViewDecodedLetter const DecodeLetter_{{
+             "zcwyaeiu",
+             "ZCWYAEIU",
+             "quzveiyg",
+             "VEIYQUZG",
+        }};
 
-        using ArrayViewBykva = std::array< Decoded::Ref, 8 >;
-        constexpr ArrayViewBykva const Bykva_{{
+        using ArrayViewDecodedSumvol = std::array< Decoded::Ref, 8 >;
+        constexpr ArrayViewDecodedSumvol const DecodeSumvol_{{
             u"жчщюяэёы", // ru jj lower
             u"ЖЧЩЮЯЭЁЫ", // ru jj upper
             u"ъыэёєіїґ", // ru jx lower
-            u"ЪЫЭЁЄІЇҐ", // ru jx upper
+            u"ЁЄІЇЪЫЭҐ", // ru jx upper
             u"жчщюяєїі", // ua jj lower
             u"ЖЧЩЮЯЄЇІ", // ua jj upper
             u"ъыэёєіїґ", // ua jx lower
-            u"ЪЫЭЁЄІЇҐ", // ua jx upper
+            u"ЁЄІЇЪЫЭҐ", // ua jx upper
         }};
+        enum class DecodedState : unsigned {
+            Default,
+            Process_Lower_J,
+            Process_Upper_J,
+            Process_Lower_JX,
+            Process_Upper_JX,
+            Push_8,
+            Error,
+        };
 
         [[nodiscard]]
         auto decode_impl( Decoded::Out &out, Decoded::In in ) -> Error {
+            using State = DecodedState;
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
-
             Decoded::Out tmp;
+            auto ali = 0; // array letter index
+            auto asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
+            auto state = DecodedState::Default;
 
+            auto process_default = [&tmp]( auto byte ) -> State {
+                if ( byte == 'j' ) return State::Process_Lower_J;
+                if ( byte == 'J' ) return State::Process_Upper_J;
+                Decoded::In trans{ "ABCDEFGHKLMNOPQRSTUVWYZabcdefghklmnopqrstuvwyz" };
+                Decoded::Ref repl{u"АБЦДЕФГХКЛМНОПЬРСТИВШУЗабцдефгхклмнопьрстившуз" };
+
+                auto it = std::lower_bound( trans.begin( ), trans.end( ), byte );
+                if ( it == trans.end( ) || *it != byte ) return State::Error;
+
+                auto index = std::distance( trans.begin( ), it );
+                tmp.push_back( repl[index] );
+                return State::Default;
+            };
+            auto process_lower_j = [&ali]( auto byte ) -> State {
+                if ( byte == 'x' ) return State::Process_Lower_JX;
+                ali = 0;
+                return State::Push_8;
+            };
+            auto process_upper_j = [&ali]( auto byte ) -> State {
+                if ( byte == 'X' ) return State::Process_Upper_JX;
+                ali = 1;
+                return State::Push_8;
+            };
+            auto process_lower_jx = [&ali]( ) -> State {
+                ali = 2;
+                return State::Push_8;
+            };
+            auto process_upper_jx = [&ali]( ) -> State {
+                ali = 3;
+                return State::Push_8;
+            };
+            auto push_8 = [ali,asi,&tmp]( auto byte ) -> State {
+                auto &searched = DecodeLetter_[ali];
+                auto beg = searched.begin( );
+                auto end = searched.end( );
+                auto it = std::find( beg, end, byte );
+                if ( it == end ) return State::Error;
+                auto &replaced = DecodeSumvol_[ali + asi];
+                tmp.push_back( replaced[std::distance(beg, it)] );
+                return State::Default;
+            };
+
+            for ( auto byte : in ) {
+                switch ( state ) {
+                    case State::Default: state = process_default( byte ); break;
+                    case State::Process_Lower_J: state = process_lower_j( byte ); break;
+                    case State::Process_Upper_J: state = process_upper_j( byte ); break;
+                    case State::Process_Lower_JX: state = process_lower_jx( ); break;
+                    case State::Process_Upper_JX: state = process_upper_jx( ); break;
+                    case State::Push_8: state = push_8( byte ); break;
+                    case State::Error: [[fallthrough]];
+                    default: return Error::InvalidWord;
+                }
+            }
 
             tmp.shrink_to_fit( );
             out = std::move( tmp );
