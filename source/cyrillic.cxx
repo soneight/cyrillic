@@ -41,6 +41,7 @@ namespace son8::cyrillic {
         static_assert( Letters_Mixed_.size( ) == 16 );
         constexpr std::bitset< Letters_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
         // -- implementation
+        [[nodiscard]]
         auto encode_impl( Encoded::Out &out, Encoded::In in ) -> Error {
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
             Encoded::Out tmp;
@@ -97,13 +98,13 @@ namespace son8::cyrillic {
             u"ЁЄІЇЪЫЭҐ", // ua jx upper
         }};
         enum class DecodedState : unsigned {
-            Default,
-            Process_Lower_J,
-            Process_Upper_J,
-            Process_Lower_JX,
-            Process_Upper_JX,
-            Push_8,
-            Error,
+            Defaults,
+            Lower_JJ,
+            Upper_JJ,
+            Lower_JX,
+            Upper_JX,
+            Pusher_8,
+            Error_DS,
         };
         // -- implementation
         [[nodiscard]]
@@ -113,61 +114,62 @@ namespace son8::cyrillic {
             Decoded::Out tmp;
             auto ali = 0; // array letter index
             auto asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
-            auto state = DecodedState::Default;
+            auto state = DecodedState::Defaults;
             // lambdas
-            auto process_default = [&tmp]( auto byte ) -> State {
-                if ( byte == 'j' ) return State::Process_Lower_J;
-                if ( byte == 'J' ) return State::Process_Upper_J;
+            auto process_defaults = [&tmp]( auto byte ) -> State {
+                if ( byte == 'j' ) return State::Lower_JJ;
+                if ( byte == 'J' ) return State::Upper_JJ;
                 Decoded::In trans{ "ABCDEFGHKLMNOPQRSTUVWYZabcdefghklmnopqrstuvwyz" };
                 Decoded::Ref repl{u"АБЦДЕФГХКЛМНОПЬРСТИВШУЗабцдефгхклмнопьрстившуз" };
 
                 auto it = std::lower_bound( trans.begin( ), trans.end( ), byte );
-                if ( it == trans.end( ) || *it != byte ) return State::Error;
+                if ( it == trans.end( ) || *it != byte ) return State::Error_DS;
 
                 auto index = std::distance( trans.begin( ), it );
                 tmp.push_back( repl[index] );
-                return State::Default;
+                return State::Defaults;
             };
-            auto process_lower_j = [&ali]( auto byte ) -> State {
-                if ( byte == 'x' ) return State::Process_Lower_JX;
+            auto process_lower_jj = [&ali]( auto byte ) -> State {
+                if ( byte == 'x' ) return State::Lower_JX;
                 ali = 0;
-                return State::Push_8;
+                return State::Pusher_8;
             };
-            auto process_upper_j = [&ali]( auto byte ) -> State {
-                if ( byte == 'X' ) return State::Process_Upper_JX;
+            auto process_upper_jj = [&ali]( auto byte ) -> State {
+                if ( byte == 'X' ) return State::Upper_JX;
                 ali = 1;
-                return State::Push_8;
+                return State::Pusher_8;
             };
             auto process_lower_jx = [&ali]( ) -> State {
                 ali = 2;
-                return State::Push_8;
+                return State::Pusher_8;
             };
             auto process_upper_jx = [&ali]( ) -> State {
                 ali = 3;
-                return State::Push_8;
+                return State::Pusher_8;
             };
-            auto push_8 = [ali,asi,&tmp]( auto byte ) -> State {
+            auto pusher_8 = [ali,asi,&tmp]( auto byte ) -> State {
                 auto &searched = DecodeLetter_[ali];
                 auto beg = searched.begin( );
                 auto end = searched.end( );
                 auto it = std::find( beg, end, byte );
-                if ( it == end ) return State::Error;
+                if ( it == end ) return State::Error_DS;
                 auto &replaced = DecodeSumvol_[ali + asi];
                 tmp.push_back( replaced[std::distance(beg, it)] );
-                return State::Default;
+                return State::Defaults;
             };
             // process
             for ( auto byte : in ) {
                 switch ( state ) {
-                    case State::Default: state = process_default( byte ); break;
-                    case State::Process_Lower_J: state = process_lower_j( byte ); break;
-                    case State::Process_Upper_J: state = process_upper_j( byte ); break;
-                    case State::Process_Lower_JX: state = process_lower_jx( ); break;
-                    case State::Process_Upper_JX: state = process_upper_jx( ); break;
-                    case State::Push_8: state = push_8( byte ); break;
-                    case State::Error: [[fallthrough]];
-                    default: return Error::InvalidWord;
+                    case State::Defaults: state = process_defaults( byte ); break;
+                    case State::Lower_JJ: state = process_lower_jj( byte ); break;
+                    case State::Upper_JJ: state = process_upper_jj( byte ); break;
+                    case State::Lower_JX: state = process_lower_jx( ); break;
+                    case State::Upper_JX: state = process_upper_jx( ); break;
+                    case State::Pusher_8: assert( false && "shold not ever reach this" ); [[fallthrough]];
+                    case State::Error_DS: [[fallthrough]];
+                    default: return Error::InvalidByte;
                 }
+                if ( state == State::Pusher_8 ) state = pusher_8( byte );
             }
             // return
             tmp.shrink_to_fit( );
