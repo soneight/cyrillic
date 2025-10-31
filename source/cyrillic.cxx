@@ -121,8 +121,8 @@ namespace son8::cyrillic {
             auto process_defaults = [&tmp]( auto byte ) -> State {
                 if ( byte == 'j' ) return State::Lower_JJ;
                 if ( byte == 'J' ) return State::Upper_JJ;
-                Decoded::In trans{ "ABCDEFGHKLMNOPQRSTUVWYZabcdefghklmnopqrstuvwyz" };
-                Decoded::Ref repl{u"АБЦДЕФГХКЛМНОПЬРСТИВШУЗабцдефгхклмнопьрстившуз" };
+                Decoded::In trans{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
+                Decoded::Ref repl{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
 
                 auto it = std::lower_bound( trans.begin( ), trans.end( ), byte );
                 if ( it == trans.end( ) || *it != byte ) return State::Error_DS;
