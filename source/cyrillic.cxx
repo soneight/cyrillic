@@ -232,7 +232,12 @@ namespace son8::cyrillic {
     }
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
+    // -- getters
+    auto Encoded::ref( ) const -> Ref { return Ref{ out_ }; }
+    auto Encoded::ptr( ) const -> Ptr { return out_.data( ); }
     auto Encoded::out( ) & -> Out & { return out_; }
+    // -- conversions
+    Encoded::operator Ref( ) const { return Ref{ out_ }; }
     // decode implementation
     // -- return
     auto decode( StringWord &out, StringByteView in ) -> Error { return decode_impl( out, in ); }
@@ -250,7 +255,12 @@ namespace son8::cyrillic {
     }
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
+    // -- getters
+    auto Decoded::ref( ) const -> Ref { return Ref{ out_ }; }
+    auto Decoded::ptr( ) const -> Ptr { return out_.data( ); }
     auto Decoded::out( ) & -> Out & { return out_; }
+    // -- conversions
+    Decoded::operator Ref( ) const { return Ref{ out_ }; }
     // error implementation
     auto error_message( Error code ) noexcept -> char const * {
         auto ec = static_cast< unsigned >( code );
