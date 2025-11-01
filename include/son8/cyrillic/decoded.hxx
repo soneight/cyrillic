@@ -18,9 +18,9 @@ namespace son8::cyrillic {
         Decoded( ) = default;
        ~Decoded( ) = default;
         Decoded( In in );
-        Decoded( Decoded &&move ) = delete;
+        Decoded( Decoded &&move ) = default;
         Decoded( Decoded const &copy ) = delete;
-        Decoded &operator=( Decoded &&move ) = delete;
+        Decoded &operator=( Decoded &&move ) = default;
         Decoded &operator=( Decoded const &copy ) = delete;
         // getters
         auto ref( ) const -> Ref; // read-only access via string_view
