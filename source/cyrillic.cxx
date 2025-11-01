@@ -12,7 +12,9 @@ namespace son8::cyrillic {
     namespace {
         // state variables
         thread_local Language Language_{ Language::None };
+        thread_local Error Error_{ Error::None };
         // global helpers
+        void state( Error error ) noexcept { Error_ = error; }
         template< typename T >
         constexpr auto check_sorted( T t ) -> bool {
             auto first = std::begin( t );
@@ -211,10 +213,41 @@ namespace son8::cyrillic {
         void state( Language language ) noexcept { Language_ = language; }
         // state getters
         auto state_language( ) noexcept -> Language { return Language_; }
+        auto state_error( ) noexcept -> Error { return Error_; }
+    }
+    // encode implementation
+    // -- return
+    auto encode( StringByte &out, StringWordView in ) -> Error { return encode_impl( out, in ); }
+    // -- output
+    auto encode( Encoded::In in, Error &code ) -> Encoded {
+        Encoded ret;
+        code = encode_impl( ret.out( ), in );
+        return ret;
+    }
+    // -- thread
+    auto encode( Encoded::In in ) -> Encoded {
+        Encoded ret;
+        state( encode_impl( ret.out( ), in ) );
+        return ret;
     }
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
     auto Encoded::out( ) & -> Out & { return out_; }
+    // decode implementation
+    // -- return
+    auto decode( StringWord &out, StringByteView in ) -> Error { return decode_impl( out, in ); }
+    // -- output
+    auto decode( Decoded::In in, Error &code ) -> Decoded {
+        Decoded ret;
+        code = decode_impl( ret.out( ), in );
+        return ret;
+    }
+    // -- thread
+    auto decode( Decoded::In in ) -> Decoded {
+        Decoded ret;
+        state( decode_impl( ret.out( ), in ) );
+        return ret;
+    }
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
     auto Decoded::out( ) & -> Out & { return out_; }
