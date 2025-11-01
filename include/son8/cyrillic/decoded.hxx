@@ -11,7 +11,8 @@ namespace son8::cyrillic {
     public:
         // public aliases
         using Out = Out_;
-        using Ref = StringWordView;
+        using Ref = Out const &;
+        using View = StringWordView;
         using Ptr = Out::value_type const *;
         using In = StringByteView;
         // constructors
@@ -23,11 +24,11 @@ namespace son8::cyrillic {
         Decoded &operator=( Decoded &&move ) = default;
         Decoded &operator=( Decoded const &copy ) = delete;
         // getters
-        auto ref( ) const -> Ref; // read-only access via string_view
+        auto ref( ) const -> Ref; // read-only access via const reference
         auto ptr( ) const -> Ptr; // pointer access to underlying data
         auto out( ) & -> Out &;   // mutable reference for modification
         // conversions
-        operator Ref( ) const;
+        operator View( ) const;
     };
 
 } // namespace
