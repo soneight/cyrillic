@@ -10,7 +10,7 @@
 namespace son8::cyrillic {
     // private implementation
     namespace {
-        // state variabkes
+        // state variables
         thread_local Language Language_{ Language::None };
         // global helpers
         template< typename T >
@@ -138,12 +138,11 @@ namespace son8::cyrillic {
             auto process_defaults = [&tmp]( auto byte ) -> State {
                 if ( byte == 'j' ) return State::Lower_JJ;
                 if ( byte == 'J' ) return State::Upper_JJ;
-
-                auto it = std::lower_bound( Decode_Sumvolu_Plain_.begin( ), Decode_Sumvolu_Plain_.end( ), byte );
-                if ( it == Decode_Sumvolu_Plain_.end( ) || *it != byte ) return State::Error_DS;
-
-                auto index = std::distance( Decode_Sumvolu_Plain_.begin( ), it );
-                tmp.push_back( Decode_Letters_Plain_[index] );
+                auto &searched = Decode_Letters_Plain_;
+                auto &replaced = Decode_Sumvolu_Plain_;
+                auto it = std::lower_bound( searched.begin( ), searched.end( ), byte );
+                if ( it == searched.end( ) || *it != byte ) return State::Error_DS;
+                tmp.push_back( replaced[std::distance( searched.begin( ), it )] );
                 return State::Defaults;
             };
             auto process_lower_jj = [&ali]( auto byte ) -> State {
