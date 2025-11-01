@@ -5,8 +5,10 @@ namespace son8::cyrillic {
 
     enum class Language : unsigned {
         None,
-        Russian,
-        Ukrainian,
+        Russian, Rysskui = Russian,
+        Ukrainian, Ykrajinsqka = Ukrainian,
+        // IMPORTANT must be last
+        Size_
     };
 
     namespace this_thread {

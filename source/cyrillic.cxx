@@ -10,16 +10,29 @@
 namespace son8::cyrillic {
     // private implementation
     namespace {
-
+        // state variables
         thread_local Language Language_{ Language::None };
+        // global helpers
+        template< typename T >
+        constexpr auto check_sorted( T t ) -> bool {
+            auto first = std::begin( t );
+            for ( auto second = first + 1; second < std::end( t ); std::advance( second, 1 ) ) {
+                if ( *second < *first ) return false;
+                first = second;
+            }
+            return true;
+        }
+        constexpr auto check_langsize( unsigned size ) -> bool { return Language::Size_ == static_cast< Language >( size ); }
         // encode implementation and it helpers
         // -- helpers
-        constexpr Encoded::In const Letters_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
-        constexpr Encoded::In const Letters_Mixed_{ u"ЁЄІЇЪЫЭъыэёєіїҐґ" };
+        constexpr Encoded::In const Encode_Sumvolu_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
+        static_assert( check_sorted( Encode_Sumvolu_Plain_ ) && Encode_Sumvolu_Plain_.size( ) == 58 );
+        constexpr Encoded::In const Encode_Sumvolu_Mixed_{ u"ЁЄІЇЪЫЭъыэёєіїҐґ" };
+        static_assert( Encode_Sumvolu_Mixed_.size( ) == 16 );
         template< unsigned Size >
         using ArrayViewLetter = std::array< Encoded::Ref, Size >;
-        using ArrayPlain = ArrayViewLetter< Letters_Plain_.size( ) >;
-        constexpr ArrayPlain const Letters_Plain_Trans_{{
+        using ArrayPlain = ArrayViewLetter< Encode_Sumvolu_Plain_.size( ) >;
+        constexpr ArrayPlain const Encode_Letters_Plain_{{
             // x is used to prepend english letters
             // upper
             "A", "B", "V", "G", "D", "E","JZ", "Z", // А,Б,В,Г,Д,Е,Ж,З
@@ -32,14 +45,14 @@ namespace son8::cyrillic {
             "r", "s", "t", "y", "f", "h", "c","jc", // р,с,т,у,ф,х,ц,ч
             "w","jw", "q","jy","ja",                // ш,щ,ь,ю,я
         }};
-        using ArrayMixed = std::array< ArrayViewLetter< Letters_Mixed_.size( ) >, 2 >;
-        constexpr ArrayMixed const Letters_Mixed_Trans_{{
+        using ArrayMixed = std::array< ArrayViewLetter< Encode_Sumvolu_Mixed_.size( ) >, 2 >;
+        constexpr ArrayMixed const Encode_Letters_Mixed_{{
             //  Ё ,   Є ,   І ,   Ї ,   Ъ ,   Ы ,   Э ,   ъ ,   ы ,   э ,   ё ,   є ,   і ,   ї ,   Ґ ,   ґ
             { "JI", "JE", "JU", "JI", "JQ", "JU", "JE", "jq", "ju", "je", "ji", "je", "ju", "ji", "JQ", "jq" },
             {"JXV","JXE","JXI","JXY","JXQ","JXU","JXZ","jxq","jxu","jxz","jxv","jxe","jxi","jxy","JXG","jxg" },
         }};
-        static_assert( Letters_Mixed_.size( ) == 16 );
-        constexpr std::bitset< Letters_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
+        static_assert( Encode_Sumvolu_Mixed_.size( ) == 16 );
+        constexpr std::bitset< Encode_Sumvolu_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
         // -- implementation
         [[nodiscard]]
         auto encode_impl( Encoded::Out &out, Encoded::In in ) -> Error {
@@ -47,23 +60,23 @@ namespace son8::cyrillic {
             Encoded::Out tmp;
             tmp.reserve( in.size( ) );
             auto find_plain = [&tmp]( auto word ) -> bool {
-                auto beg = Letters_Plain_.begin( );
-                auto end = Letters_Plain_.end( );
+                auto beg = Encode_Sumvolu_Plain_.begin( );
+                auto end = Encode_Sumvolu_Plain_.end( );
                 auto it = std::lower_bound( beg, end, word );
                 if ( it == end || *it != word ) return false;
-                tmp.append( Letters_Plain_Trans_[std::distance( beg, it )] );
+                tmp.append( Encode_Letters_Plain_[std::distance( beg, it )] );
                 return true;
             };
             auto find_mixed = [&tmp]( auto word ) -> bool {
-                auto beg = Letters_Mixed_.begin( );
-                auto end = Letters_Mixed_.end( );
+                auto beg = Encode_Sumvolu_Mixed_.begin( );
+                auto end = Encode_Sumvolu_Mixed_.end( );
                 auto it = std::find( beg, end, word );
                 if ( it == end ) return false;
-                auto lang = static_cast< unsigned >( this_thread::state_language( ) ) - 1u;
-                assert( lang < 2 );
+                static_assert( check_langsize( 3 ) );
+                bool lang = static_cast< unsigned >( this_thread::state_language( ) ) - 1u;
                 auto col = std::distance( beg, it );
-                auto row = Letters_Mixed_Flags_[col] != lang;
-                tmp.append( Letters_Mixed_Trans_[row][col] );
+                auto row = Letters_Mixed_Flags_[col] != lang ? 1 : 0;
+                tmp.append( Encode_Letters_Mixed_[row][col] );
                 return true;
             };
 
@@ -79,17 +92,21 @@ namespace son8::cyrillic {
         }
         // decode implementation and it helpers
         // -- helpers
-        using ArrayViewDecodedLetter = std::array< Decoded::In, 4 >;
+        constexpr Decoded::In  Decode_Letters_Plain_{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
+        static_assert( check_sorted( Decode_Letters_Plain_ ) );
+        constexpr Decoded::Ref Decode_Sumvolu_Plain_{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
+        static_assert( Decode_Letters_Plain_.size( ) == Decode_Sumvolu_Plain_.size( ) );
+        using ArrayViewDecodeLetters = std::array< Decoded::In, 4 >;
         // TODO maybe do also 8 to map 1to1, and change order of elements for
         //      most popular ones for each entry to improve find performances
-        constexpr ArrayViewDecodedLetter const DecodeLetter_{{
+        constexpr ArrayViewDecodeLetters const Decode_Letters_Mixed_{{
             "zcwyaeiu",
             "ZCWYAEIU",
             "quzveiyg",
             "VEIYQUZG",
         }};
-        using ArrayViewDecodedSumvol = std::array< Decoded::Ref, 8 >;
-        constexpr ArrayViewDecodedSumvol const DecodeSumvol_{{
+        using ArrayViewDecodeSumvolu = std::array< Decoded::Ref, 8 >;
+        constexpr ArrayViewDecodeSumvolu const Decode_Sumvolu_Mixed_{{
            u"жчщюяэёы", // ru jj lower
            u"ЖЧЩЮЯЭЁЫ", // ru jj upper
            u"ъыэёєіїґ", // ru jx lower
@@ -121,14 +138,11 @@ namespace son8::cyrillic {
             auto process_defaults = [&tmp]( auto byte ) -> State {
                 if ( byte == 'j' ) return State::Lower_JJ;
                 if ( byte == 'J' ) return State::Upper_JJ;
-                Decoded::In trans{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
-                Decoded::Ref repl{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
-
-                auto it = std::lower_bound( trans.begin( ), trans.end( ), byte );
-                if ( it == trans.end( ) || *it != byte ) return State::Error_DS;
-
-                auto index = std::distance( trans.begin( ), it );
-                tmp.push_back( repl[index] );
+                auto &searched = Decode_Letters_Plain_;
+                auto &replaced = Decode_Sumvolu_Plain_;
+                auto it = std::lower_bound( searched.begin( ), searched.end( ), byte );
+                if ( it == searched.end( ) || *it != byte ) return State::Error_DS;
+                tmp.push_back( replaced[std::distance( searched.begin( ), it )] );
                 return State::Defaults;
             };
             auto process_lower_jj = [&ali]( auto byte ) -> State {
@@ -150,12 +164,12 @@ namespace son8::cyrillic {
                 return State::Pusher_8;
             };
             auto pusher_8 = [&ali,asi,&tmp]( auto byte ) -> State {
-                auto &searched = DecodeLetter_[ali];
+                auto &searched = Decode_Letters_Mixed_[ali];
                 auto beg = searched.begin( );
                 auto end = searched.end( );
                 auto it = std::find( beg, end, byte );
                 if ( it == end ) return State::Error_DS;
-                auto &replaced = DecodeSumvol_[ali + asi];
+                auto &replaced = Decode_Sumvolu_Mixed_[ali + asi];
                 tmp.push_back( replaced[std::distance(beg, it)] );
                 return State::Defaults;
             };
