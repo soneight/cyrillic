@@ -1,6 +1,8 @@
 #ifndef SON8_CYRILLIC_STATE_HXX
 #define SON8_CYRILLIC_STATE_HXX
 
+#include <son8/cyrillic/error.hxx>
+
 namespace son8::cyrillic {
 
     enum class Language : unsigned {
@@ -16,6 +18,7 @@ namespace son8::cyrillic {
         void state( Language language ) noexcept;
         // state getters
         auto state_language( ) noexcept -> Language;
+        auto state_error( ) noexcept -> Error;
     }
 }
 
