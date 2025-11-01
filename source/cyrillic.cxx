@@ -32,7 +32,7 @@ namespace son8::cyrillic {
         constexpr Encoded::In const Encode_Sumvolu_Mixed_{ u"ЁЄІЇЪЫЭъыэёєіїҐґ" };
         static_assert( Encode_Sumvolu_Mixed_.size( ) == 16 );
         template< unsigned Size >
-        using ArrayViewLetter = std::array< Encoded::Ref, Size >;
+        using ArrayViewLetter = std::array< Encoded::View, Size >;
         using ArrayPlain = ArrayViewLetter< Encode_Sumvolu_Plain_.size( ) >;
         constexpr ArrayPlain const Encode_Letters_Plain_{{
             // x is used to prepend english letters
@@ -53,7 +53,6 @@ namespace son8::cyrillic {
             { "JI", "JE", "JU", "JI", "JQ", "JU", "JE", "jq", "ju", "je", "ji", "je", "ju", "ji", "JQ", "jq" },
             {"JXV","JXE","JXI","JXY","JXQ","JXU","JXZ","jxq","jxu","jxz","jxv","jxe","jxi","jxy","JXG","jxg" },
         }};
-        static_assert( Encode_Sumvolu_Mixed_.size( ) == 16 );
         constexpr std::bitset< Encode_Sumvolu_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
         // -- implementation
         [[nodiscard]]
@@ -94,9 +93,9 @@ namespace son8::cyrillic {
         }
         // decode implementation and it helpers
         // -- helpers
-        constexpr Decoded::In  Decode_Letters_Plain_{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
+        constexpr Decoded::In   Decode_Letters_Plain_{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
         static_assert( check_sorted( Decode_Letters_Plain_ ) );
-        constexpr Decoded::Ref Decode_Sumvolu_Plain_{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
+        constexpr Decoded::View Decode_Sumvolu_Plain_{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
         static_assert( Decode_Letters_Plain_.size( ) == Decode_Sumvolu_Plain_.size( ) );
         using ArrayViewDecodeLetters = std::array< Decoded::In, 4 >;
         // TODO maybe do also 8 to map 1to1, and change order of elements for
@@ -107,7 +106,7 @@ namespace son8::cyrillic {
             "quzveiyg",
             "VEIYQUZG",
         }};
-        using ArrayViewDecodeSumvolu = std::array< Decoded::Ref, 8 >;
+        using ArrayViewDecodeSumvolu = std::array< Decoded::View, 8 >;
         constexpr ArrayViewDecodeSumvolu const Decode_Sumvolu_Mixed_{{
            u"жчщюяэёы", // ru jj lower
            u"ЖЧЩЮЯЭЁЫ", // ru jj upper
@@ -233,11 +232,11 @@ namespace son8::cyrillic {
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
     // -- getters
-    auto Encoded::ref( ) const -> Ref { return Ref{ out_ }; }
+    auto Encoded::ref( ) const -> Ref { return out_; }
     auto Encoded::ptr( ) const -> Ptr { return out_.data( ); }
     auto Encoded::out( ) & -> Out & { return out_; }
     // -- conversions
-    Encoded::operator Ref( ) const { return Ref{ out_ }; }
+    Encoded::operator View( ) const { return View{ out_ }; }
     // decode implementation
     // -- return
     auto decode( StringWord &out, StringByteView in ) -> Error { return decode_impl( out, in ); }
@@ -256,11 +255,11 @@ namespace son8::cyrillic {
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
     // -- getters
-    auto Decoded::ref( ) const -> Ref { return Ref{ out_ }; }
+    auto Decoded::ref( ) const -> Ref { return out_; }
     auto Decoded::ptr( ) const -> Ptr { return out_.data( ); }
     auto Decoded::out( ) & -> Out & { return out_; }
     // -- conversions
-    Decoded::operator Ref( ) const { return Ref{ out_ }; }
+    Decoded::operator View( ) const { return View{ out_ }; }
     // error implementation
     auto error_message( Error code ) noexcept -> char const * {
         auto ec = static_cast< unsigned >( code );
