@@ -56,9 +56,9 @@ namespace son8::cyrillic {
         constexpr std::bitset< Encode_Sumvolu_Mixed_.size( ) > Letters_Mixed_Flags_{ 0b1111'1000'0000'1110 };
         // -- implementation
         [[nodiscard]]
-        auto encode_impl( Encoded::Out &out, Encoded::In in ) -> Error {
+        auto encode_impl( Encoded::Out out, Encoded::In in ) -> Error {
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
-            Encoded::Out tmp;
+            Encoded::Data tmp;
             tmp.reserve( in.size( ) );
             auto find_plain = [&tmp]( auto word ) -> bool {
                 auto beg = Encode_Sumvolu_Plain_.begin( );
@@ -128,10 +128,10 @@ namespace son8::cyrillic {
         };
         // -- implementation
         [[nodiscard]]
-        auto decode_impl( Decoded::Out &out, Decoded::In in ) -> Error {
+        auto decode_impl( Decoded::Out out, Decoded::In in ) -> Error {
             using State = DecodedState;
             if ( this_thread::state_language( ) == Language::None ) return Error::Language;
-            Decoded::Out tmp;
+            Decoded::Data tmp;
             auto ali = 0; // array letter index
             auto const asi = ( this_thread::state_language( ) == Language::Ukrainian ) ? 4 : 0; // array sumvol index
             auto state = DecodedState::Defaults;
@@ -190,7 +190,10 @@ namespace son8::cyrillic {
             }
             if ( state != State::Defaults ) return Error::InvalidByte;
             // return
-            tmp.shrink_to_fit( );
+            // -- if size equal capacity user possibly expect data to be shrink
+            // -- or can force to not shrinking it providing out with capacity
+            // -- TODO document this behavior into root README
+            if ( out.size( ) == out.capacity( ) ) tmp.shrink_to_fit( );
             out = std::move( tmp );
             return Error::None;
         }
@@ -217,7 +220,7 @@ namespace son8::cyrillic {
     }
     // encode implementation
     // -- return
-    auto encode( StringByte &out, StringWordView in ) -> Error { return encode_impl( out, in ); }
+    auto encode( Encoded::Out out, Encoded::In in ) -> Error { return encode_impl( out, in ); }
     // -- output
     auto encode( Encoded::In in, Error &code ) -> Encoded {
         Encoded ret;
@@ -233,14 +236,15 @@ namespace son8::cyrillic {
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
     // -- getters
-    auto Encoded::ref( ) const -> Ref { return out_; }
-    auto Encoded::ptr( ) const -> Ptr { return out_.data( ); }
-    auto Encoded::out( ) & -> Out & { return out_; }
+    auto Encoded::ref( ) const & -> Ref { return data_; }
+    auto Encoded::ptr( ) &       -> Ptr { return data_.data( ); }
+    auto Encoded::out( ) &       -> Out { return data_; }
+    auto Encoded::fwd( ) &&      -> Fwd { return std::move( data_ ); }
     // -- conversions
-    Encoded::operator View( ) const { return View{ out_ }; }
+    Encoded::operator View( ) const { return View{ data_ }; }
     // decode implementation
     // -- return
-    auto decode( StringWord &out, StringByteView in ) -> Error { return decode_impl( out, in ); }
+    auto decode( Decoded::Out out, Decoded::In in ) -> Error { return decode_impl( out, in ); }
     // -- output
     auto decode( Decoded::In in, Error &code ) -> Decoded {
         Decoded ret;
@@ -256,11 +260,12 @@ namespace son8::cyrillic {
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
     // -- getters
-    auto Decoded::ref( ) const -> Ref { return out_; }
-    auto Decoded::ptr( ) const -> Ptr { return out_.data( ); }
-    auto Decoded::out( ) & -> Out & { return out_; }
+    auto Decoded::ref( ) const & -> Ref { return data_; }
+    auto Decoded::ptr( ) &       -> Ptr { return data_.data( ); }
+    auto Decoded::out( ) &       -> Out { return data_; }
+    auto Decoded::fwd( ) &&      -> Fwd { return std::move( data_ ); }
     // -- conversions
-    Decoded::operator View( ) const { return View{ out_ }; }
+    Decoded::operator View( ) const { return View{ data_ }; }
     // error implementation
     auto error_message( Error code ) noexcept -> char const * {
         auto ec = static_cast< unsigned >( code );

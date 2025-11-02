@@ -6,14 +6,16 @@
 namespace son8::cyrillic {
 
     class Encoded {
-        using Out_ = StringByte;
-        Out_ out_;
+        using Data_ = StringByte;
+        Data_ data_;
     public:
         // public aliases
-        using Out = Out_;
-        using Ref = Out const &;
         using View = StringByteView;
-        using Ptr = Out::value_type const *;
+        using Data = Data_;
+        using Out = Data &;
+        using Ref = Data const &;
+        using Ptr = Data::value_type *;
+        using Fwd = Data &&;
         using In = StringWordView;
         // constructors
         Encoded( ) = default;
@@ -24,9 +26,10 @@ namespace son8::cyrillic {
         Encoded &operator=( Encoded &&move ) = default;
         Encoded &operator=( Encoded const &copy ) = delete;
         // getters
-        auto ref( ) const -> Ref; // read-only access via const reference
-        auto ptr( ) const -> Ptr; // pointer access to underlying data
-        auto out( ) & -> Out &;   // mutable reference for modification
+        auto ref( ) const & -> Ref; // read-only access via const reference
+        auto ptr( ) &       -> Ptr; // wild pointer access to underlying data
+        auto out( ) &       -> Out; // mutable reference for modification
+        auto fwd( ) &&      -> Fwd; // forwaring access for temporaries
         // conversions
         operator View( ) const;
     };
