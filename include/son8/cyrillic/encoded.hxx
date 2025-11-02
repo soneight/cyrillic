@@ -29,7 +29,7 @@ namespace son8::cyrillic {
         auto ref( ) const & -> Ref; // read-only access via const reference
         auto ptr( ) &       -> Ptr; // wild pointer access to underlying data
         auto out( ) &       -> Out; // mutable reference for modification
-        auto fwd( ) &&      -> Fwd; // forwaring access for temporaries
+        auto fwd( ) &&      -> Fwd; // forwarding reference for temporaries
         // conversions
         operator View( ) const;
     };

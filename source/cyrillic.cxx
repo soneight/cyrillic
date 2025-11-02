@@ -86,8 +86,11 @@ namespace son8::cyrillic {
                 if ( find_mixed( word ) ) continue;
                 return Error::InvalidWord;
             }
-
-            tmp.shrink_to_fit( );
+            // return
+            // -- if size equal capacity user possibly expect data to be shrink
+            // -- or can force to not shrinking it providing out with capacity
+            // -- TODO document this behavior into root README
+            if ( out.size( ) == out.capacity( ) ) tmp.shrink_to_fit( );
             out = std::move( tmp );
             return Error::None;
         }
