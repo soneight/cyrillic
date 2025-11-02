@@ -188,6 +188,7 @@ namespace son8::cyrillic {
                 }
                 if ( state == State::Pusher_8 ) state = pusher_8( byte );
             }
+            if ( state != State::Defaults ) return Error::InvalidByte;
             // return
             tmp.shrink_to_fit( );
             out = std::move( tmp );
