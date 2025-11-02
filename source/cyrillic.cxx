@@ -1,11 +1,11 @@
 #include <son8/cyrillic.hxx>
 // std headers
-#include <algorithm>
-#include <array>
-#include <bitset>
-#include <cassert>
-#include <iterator>
-#include <string_view>
+#include <algorithm> // find, lower_bound
+#include <array> // array
+#include <bitset> // bitset
+#include <cassert> // (macro) assert
+#include <string_view> // basic_string_view
+#include <utility> // move
 
 namespace son8::cyrillic {
     // private implementation
@@ -16,10 +16,10 @@ namespace son8::cyrillic {
         // global helpers
         void state( Error error ) noexcept { Error_ = error; }
         template< typename T >
-        constexpr auto check_sorted( T t ) -> bool {
-            auto first = std::begin( t );
-            for ( auto second = first + 1; second < std::end( t ); std::advance( second, 1 ) ) {
-                if ( *second < *first ) return false;
+        constexpr auto check_sorted( std::basic_string_view< T > t ) -> bool {
+            auto second = t.begin( ) + 1;
+            for ( auto first = t.begin( ); second < t.end( ); ++second ) {
+                if ( *second <= *first ) return false;
                 first = second;
             }
             return true;
@@ -65,7 +65,7 @@ namespace son8::cyrillic {
                 auto end = Encode_Sumvolu_Plain_.end( );
                 auto it = std::lower_bound( beg, end, word );
                 if ( it == end || *it != word ) return false;
-                tmp.append( Encode_Letters_Plain_[std::distance( beg, it )] );
+                tmp.append( Encode_Letters_Plain_[it - beg] );
                 return true;
             };
             auto find_mixed = [&tmp]( auto word ) -> bool {
@@ -75,7 +75,7 @@ namespace son8::cyrillic {
                 if ( it == end ) return false;
                 static_assert( check_langsize( 3 ) );
                 bool lang = static_cast< unsigned >( this_thread::state_language( ) ) - 1u;
-                auto col = std::distance( beg, it );
+                auto col = it - beg;
                 auto row = Letters_Mixed_Flags_[col] != lang ? 1 : 0;
                 tmp.append( Encode_Letters_Mixed_[row][col] );
                 return true;
@@ -101,19 +101,19 @@ namespace son8::cyrillic {
         // TODO maybe do also 8 to map 1to1, and change order of elements for
         //      most popular ones for each entry to improve find performances
         constexpr ArrayViewDecodeLetters const Decode_Letters_Mixed_{{
-            "zcwyaeiu",
-            "ZCWYAEIU",
+            "zcwyaeiuq",
+            "ZCWYAEIUq",
             "quzveiyg",
             "VEIYQUZG",
         }};
         using ArrayViewDecodeSumvolu = std::array< Decoded::View, 8 >;
         constexpr ArrayViewDecodeSumvolu const Decode_Sumvolu_Mixed_{{
-           u"жчщюяэёы", // ru jj lower
-           u"ЖЧЩЮЯЭЁЫ", // ru jj upper
+           u"жчщюяэёыъ", // ru jj lower
+           u"ЖЧЩЮЯЭЁЫЪ", // ru jj upper
            u"ъыэёєіїґ", // ru jx lower
            u"ЁЄІЇЪЫЭҐ", // ru jx upper
-           u"жчщюяєїі", // ua jj lower
-           u"ЖЧЩЮЯЄЇІ", // ua jj upper
+           u"жчщюяєїіґ",// ua jj lower
+           u"ЖЧЩЮЯЄЇІҐ",// ua jj upper
            u"ъыэёєіїґ", // ua jx lower
            u"ЁЄІЇЪЫЭҐ", // ua jx upper
         }};
@@ -139,11 +139,11 @@ namespace son8::cyrillic {
             auto process_defaults = [&tmp]( auto byte ) -> State {
                 if ( byte == 'j' ) return State::Lower_JJ;
                 if ( byte == 'J' ) return State::Upper_JJ;
-                auto &searched = Decode_Letters_Plain_;
-                auto &replaced = Decode_Sumvolu_Plain_;
-                auto it = std::lower_bound( searched.begin( ), searched.end( ), byte );
-                if ( it == searched.end( ) || *it != byte ) return State::Error_DS;
-                tmp.push_back( replaced[std::distance( searched.begin( ), it )] );
+                auto beg = Decode_Letters_Plain_.begin( );
+                auto end = Decode_Letters_Plain_.end( );
+                auto it = std::lower_bound( beg, end, byte );
+                if ( it == end || *it != byte ) return State::Error_DS;
+                tmp.push_back( Decode_Sumvolu_Plain_[it - beg] );
                 return State::Defaults;
             };
             auto process_lower_jj = [&ali]( auto byte ) -> State {
@@ -171,7 +171,7 @@ namespace son8::cyrillic {
                 auto it = std::find( beg, end, byte );
                 if ( it == end ) return State::Error_DS;
                 auto &replaced = Decode_Sumvolu_Mixed_[ali + asi];
-                tmp.push_back( replaced[std::distance(beg, it)] );
+                tmp.push_back( replaced[it - beg] );
                 return State::Defaults;
             };
             // process
