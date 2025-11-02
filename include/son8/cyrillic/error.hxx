@@ -14,7 +14,7 @@ namespace son8::cyrillic {
 
     auto error_message( Error code ) noexcept -> char const *;
 
-}
+} // namespace
 
 #endif//SON8_CYRILLIC_ERROR_HXX
 
