@@ -5,7 +5,7 @@
 
 namespace son8::cyrillic {
 
-    class Decoded {
+    class Decoded final {
         using Data_ = StringWord;
         Data_ data_;
     public:
@@ -22,14 +22,15 @@ namespace son8::cyrillic {
        ~Decoded( ) = default;
         Decoded( In in );
         Decoded( Decoded &&move ) = default;
-        Decoded( Decoded const &copy ) = delete;
+        Decoded( Decoded const &copy ) = default;
         Decoded &operator=( Decoded &&move ) = default;
-        Decoded &operator=( Decoded const &copy ) = delete;
+        Decoded &operator=( Decoded const &copy ) = default;
         // getters
-        auto ref( ) const & -> Ref; // read-only access via const reference
-        auto ptr( ) &       -> Ptr; // wild pointer access to underlying data
-        auto out( ) &       -> Out; // mutable reference for modification
-        auto fwd( ) &&      -> Fwd; // forwarding reference for temporaries
+        [[nodiscard]] auto ref( ) const & noexcept -> Ref; // reading access via const reference
+        [[nodiscard]] auto ptr( ) &       noexcept -> Ptr; // pointer access to underlying data
+        [[nodiscard]] auto out( ) &       noexcept -> Out; // mutable access for modification
+        [[nodiscard]] auto fwd( ) &       noexcept -> Fwd; // forward borrow resource
+        [[nodiscard]] auto fwd( ) &&      noexcept ->Data; // forward steals resource
         // conversions
         operator View( ) const;
     };

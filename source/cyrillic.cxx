@@ -239,10 +239,11 @@ namespace son8::cyrillic {
     // encoded implementation
     Encoded::Encoded( In in ) { error_throw( encode_impl( out( ), in ) ); }
     // -- getters
-    auto Encoded::ref( ) const & -> Ref { return data_; }
-    auto Encoded::ptr( ) &       -> Ptr { return data_.data( ); }
-    auto Encoded::out( ) &       -> Out { return data_; }
-    auto Encoded::fwd( ) &&      -> Fwd { return std::move( data_ ); }
+    auto Encoded::ref( ) const & noexcept -> Ref { return data_; }
+    auto Encoded::ptr( ) &       noexcept -> Ptr { return data_.data( ); }
+    auto Encoded::out( ) &       noexcept -> Out { return data_; }
+    auto Encoded::fwd( ) &       noexcept -> Fwd { return std::move( data_ ); }
+    auto Encoded::fwd( ) &&      noexcept ->Data { return std::move( data_ ); }
     // -- conversions
     Encoded::operator View( ) const { return View{ data_ }; }
     // decode implementation
@@ -263,10 +264,11 @@ namespace son8::cyrillic {
     // decoded implementation
     Decoded::Decoded( In in ) { error_throw( decode_impl( out( ), in ) ); }
     // -- getters
-    auto Decoded::ref( ) const & -> Ref { return data_; }
-    auto Decoded::ptr( ) &       -> Ptr { return data_.data( ); }
-    auto Decoded::out( ) &       -> Out { return data_; }
-    auto Decoded::fwd( ) &&      -> Fwd { return std::move( data_ ); }
+    auto Decoded::ref( ) const & noexcept -> Ref { return data_; }
+    auto Decoded::ptr( ) &       noexcept -> Ptr { return data_.data( ); }
+    auto Decoded::out( ) &       noexcept -> Out { return data_; }
+    auto Decoded::fwd( ) &       noexcept -> Fwd { return std::move( data_ ); }
+    auto Decoded::fwd( ) &&      noexcept ->Data { return std::move( data_ ); }
     // -- conversions
     Decoded::operator View( ) const { return View{ data_ }; }
     // error implementation
