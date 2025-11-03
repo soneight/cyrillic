@@ -105,7 +105,7 @@ namespace son8::cyrillic {
         //      most popular ones for each entry to improve find performances
         constexpr ArrayViewDecodeLetters const Decode_Letters_Mixed_{{
             "zcwyaeiuq",
-            "ZCWYAEIUq",
+            "ZCWYAEIUQ",
             "quzveiyg",
             "VEIYQUZG",
         }};
