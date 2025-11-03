@@ -5,7 +5,7 @@
 
 namespace son8::cyrillic {
 
-    class Encoded {
+    class Encoded final {
         using Data_ = StringByte;
         Data_ data_;
     public:
@@ -22,14 +22,15 @@ namespace son8::cyrillic {
        ~Encoded( ) = default;
         Encoded( In in );
         Encoded( Encoded &&move ) = default;
-        Encoded( Encoded const &copy ) = delete;
+        Encoded( Encoded const &copy ) = default;
         Encoded &operator=( Encoded &&move ) = default;
-        Encoded &operator=( Encoded const &copy ) = delete;
+        Encoded &operator=( Encoded const &copy ) = default;
         // getters
-        auto ref( ) const & -> Ref; // read-only access via const reference
-        auto ptr( ) &       -> Ptr; // wild pointer access to underlying data
-        auto out( ) &       -> Out; // mutable reference for modification
-        auto fwd( ) &&      -> Fwd; // forwarding reference for temporaries
+        [[nodiscard]] auto ref( ) const & noexcept -> Ref; // reading access via const reference
+        [[nodiscard]] auto ptr( ) &       noexcept -> Ptr; // pointer access to underlying data
+        [[nodiscard]] auto out( ) &       noexcept -> Out; // mutable access for modification
+        [[nodiscard]] auto fwd( ) &       noexcept -> Fwd; // forward borrow resource
+        [[nodiscard]] auto fwd( ) &&      noexcept ->Data; // forward steals resource
         // conversions
         operator View( ) const;
     };
