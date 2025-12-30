@@ -9,3 +9,5 @@ namespace son8::cyrillic {
 } // namespace
 
 #endif//SON8_CYRILLIC_ENCODE_THREAD_HXX
+
+// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ

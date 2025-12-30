@@ -4,6 +4,8 @@
 #include <array> // array
 #include <bitset> // bitset
 #include <cassert> // (macro) assert
+#include <codecvt> // codecvt_utf8_utf16
+#include <locale> // wstring_convert
 #include <string_view> // basic_string_view
 #include <utility> // move
 
@@ -200,17 +202,37 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
-
+        // convert implementation
+        // -- convert
+        template< typename Out, typename In >
+        [[nodiscard]] auto convert_impl( Out &out, In in ) -> Error {
+            if ( in.empty( ) ) {
+                out.clear( );
+                return Error::None;
+            }
+            using Converter = std::wstring_convert< std::codecvt_utf8_utf16< char16_t >, char16_t >;
+            Converter converter{ "", u"" };
+            constexpr auto OutSize = sizeof( typename Out::value_type );
+            constexpr auto InSize = sizeof( typename In::value_type );
+            static_assert( OutSize != InSize, "son8::cyrillic convert requires value types with different sizes" );
+            if constexpr ( OutSize < InSize ) out = converter.to_bytes( in.data( ), in.data( ) + in.size( ) );
+            else                              out = converter.from_bytes( in.data( ), in.data( ) + in.size( ) );
+            if ( out.empty( ) ) return Error::ConvertFailed;
+            return Error::None;
+        }
+        // error implementation
+        // -- throw only if error is non-zero
         void error_throw( Error code ) { if ( code != Error::None ) throw Exception{ code }; }
-
+        // -- helper too determine error array size
         constexpr auto error_size( ) -> unsigned { return static_cast< unsigned >( Error::Size_ ); }
-
+        // -- map between error enum and messages
         using ArrayViewError = std::array< char const * ,  error_size( ) >;
         ArrayViewError Error_Messages_{{
-            "not an error",
-            "language not set",
-            "invalid word",
-            "invalid byte",
+            "son8::cyrillic: not an error",
+            "son8::cyrillic: language not set",
+            "son8::cyrillic: invalid word",
+            "son8::cyrillic: invalid byte",
+            "son8::cyrillic: convert failed"
         }};
     } // anonymous namespace
     // state implementation
@@ -276,6 +298,17 @@ namespace son8::cyrillic {
         auto ec = static_cast< unsigned >( code );
         assert( ec < error_size( ) );
         return Error_Messages_[ec];
+    }
+    // convert implementation
+    [[nodiscard]] auto string_byte( StringWordView in ) -> StringByte {
+        StringByte out;
+        state ( convert_impl( out, in ) );
+        return out;
+    }
+    [[nodiscard]] auto string_word( StringByteView in ) -> StringWord {
+        StringWord out;
+        state ( convert_impl( out, in ) );
+        return out;
     }
     // exception implementation
     Exception::Exception( Error code ) noexcept : code_{ code } { assert( code != Error::None ); }
