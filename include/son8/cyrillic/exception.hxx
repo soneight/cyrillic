@@ -19,3 +19,5 @@ namespace son8::cyrillic {
 }
 
 #endif//SON8_CYRILLIC_EXCEPTION_HXX
+
+// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ

@@ -6,3 +6,5 @@
 #include <son8/cyrillic/encode/thread.hxx>
 
 #endif//SON8_CYRILLIC_ENCODE_HXX
+
+// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
