@@ -99,16 +99,11 @@ namespace son8::cyrillic {
                 return true;
             };
             auto find_latin = [&tmp]( auto word ) -> bool {
-                using charType = typename Encoded::Data::value_type;
-                charType ch;
-                bool upper{ false };
+                bool upper = 'A' <= word && word <= 'Z';
                 bool lower = 'a' <= word && word <= 'z';
-                if ( not lower ) upper = 'A' <= word && word <= 'Z';
-                else ch = 'x';
-                if ( not upper ) return false;
-                else ch = 'X';
-                tmp.push_back( ch );
-                tmp.push_back( static_cast< charType >( word ) );
+                if ( not ( upper || lower ) ) return false;
+                tmp.push_back( lower ? 'x' : 'X' );
+                tmp.push_back( static_cast< unsigned char >( word ) );
                 return true;
             };
 
