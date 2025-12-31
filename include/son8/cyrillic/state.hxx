@@ -2,6 +2,7 @@
 #define SON8_CYRILLIC_STATE_HXX
 
 #include <son8/cyrillic/error.hxx>
+#include <son8/cyrillic/validate.hxx>
 
 namespace son8::cyrillic {
 
@@ -16,9 +17,15 @@ namespace son8::cyrillic {
     namespace this_thread {
         // state setters
         void state( Language language ) noexcept;
+        void state( Validate validate ) noexcept;
+        void state( ValidateFlagAppend flag ) noexcept;
+        void state( ValidateFlagIgnore flag ) noexcept;
+        [[deprecated]]
+        void state( ValidateVeiled flags ) noexcept;
         // state getters
         auto state_language( ) noexcept -> Language;
         auto state_error( ) noexcept -> Error;
+        auto state_validate( ) noexcept -> Validate;
     }
 }
 

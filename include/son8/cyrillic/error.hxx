@@ -9,6 +9,7 @@ namespace son8::cyrillic {
         InvalidWord,
         InvalidByte,
         ConvertFailed,
+        ValidateMisconfigured,
         // !IMPORTANT must be last element
         Size_,
     };

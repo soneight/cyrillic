@@ -15,8 +15,11 @@ namespace son8::cyrillic {
         // state variables
         thread_local Language Language_{ Language::None };
         thread_local Error Error_{ Error::None };
+        thread_local Validate Validate_{ Validate::None };
         // global helpers
+        // -- set error state
         void state( Error error ) noexcept { Error_ = error; }
+        // -- compile-time sorted check for static assert
         template< typename T >
         constexpr auto check_sorted( std::basic_string_view< T > t ) -> bool {
             auto second = t.begin( ) + 1;
@@ -26,8 +29,21 @@ namespace son8::cyrillic {
             }
             return true;
         }
+        // -- compile-time language size check for static assert
         constexpr auto check_langsize( unsigned size ) -> bool { return Language::Size_ == static_cast< Language >( size ); }
-        // encode implementation and it helpers
+        // -- check flag is set
+        template< bool Append >
+        struct validate {
+            bool operator()( Validate flags, ValidateFlags bit ) const noexcept {
+                auto f = static_cast< ValidateVeiled >( flags );
+                auto b = static_cast< ValidateFlagsVeiled >( bit );
+                if constexpr ( Append ) b += Validate_Half_Bits;
+                return f & ( 1ull << b );
+            }
+        };
+        using validate_append = validate< ValidateFlagAppend::type >;
+        using validate_ignore = validate< ValidateFlagIgnore::type >;
+        // encode detail implementation and it helpers
         // -- helpers
         constexpr Encoded::In const Encode_Sumvolu_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
         static_assert( check_sorted( Encode_Sumvolu_Plain_ ) && Encode_Sumvolu_Plain_.size( ) == 58 );
@@ -82,10 +98,35 @@ namespace son8::cyrillic {
                 tmp.append( Encode_Letters_Mixed_[row][col] );
                 return true;
             };
+            auto find_latin = [&tmp]( auto word ) -> bool {
+                using charType = typename Encoded::Data::value_type;
+                charType ch;
+                bool upper{ false };
+                bool lower = 'a' <= word && word <= 'z';
+                if ( not lower ) upper = 'A' <= word && word <= 'Z';
+                else ch = 'x';
+                if ( not upper ) return false;
+                else ch = 'X';
+                tmp.push_back( ch );
+                tmp.push_back( static_cast< charType >( word ) );
+                return true;
+            };
 
-            for ( auto word : in ) {
+            for ( Unt2 word : in ) {
                 if ( find_plain( word ) ) continue;
                 if ( find_mixed( word ) ) continue;
+                switch ( Validate_ ) {
+                case Validate::IgnoreAll: continue;
+                case Validate::AppendAll: {
+                    if ( find_latin( word ) ) continue;
+                    if ( word >> 8u ) tmp.push_back( word >> 8u );
+                    tmp.push_back( static_cast< unsigned char >( word ) );
+                    continue;
+                }
+                default: {
+                    // TODO
+                    break;
+                }}
                 return Error::InvalidWord;
             }
             // return
@@ -96,8 +137,8 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
-        // decode implementation and it helpers
-        // -- helpers
+        // decode detail implementation and it helpers
+        // -- detail helpers
         constexpr Decoded::In   Decode_Letters_Plain_{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
         static_assert( check_sorted( Decode_Letters_Plain_ ) );
         constexpr Decoded::View Decode_Sumvolu_Plain_{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
@@ -131,7 +172,7 @@ namespace son8::cyrillic {
             Pusher_8,
             Error_DS,
         };
-        // -- implementation
+        // -- detail implementation
         [[nodiscard]]
         auto decode_impl( Decoded::Out out, Decoded::In in ) -> Error {
             using State = DecodedState;
@@ -202,7 +243,7 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
-        // convert implementation
+        // convert detail implementation
         // -- convert
         template< typename Out, typename In >
         [[nodiscard]] auto convert_impl( Out &out, In in ) -> Error {
@@ -220,6 +261,18 @@ namespace son8::cyrillic {
             if ( out.empty( ) ) return Error::ConvertFailed;
             return Error::None;
         }
+        // validate detail implementation
+        // -- flag
+        template< bool Append >
+        void validate_flag_impl( ValidateFlags flag ) {
+            auto bit = static_cast< ValidateFlagsVeiled >( flag );
+            auto bitLo = 1ull << bit;
+            auto bitHi = 1ull << ( bit + Validate_Half_Bits );
+            auto value = static_cast< ValidateVeiled >( Validate_ );
+            if constexpr ( Append ) value |= bitHi, value &=~bitLo;
+            else                    value &=~bitHi, value |= bitLo;
+            Validate_ = static_cast< Validate >( value );
+        }
         // error implementation
         // -- throw only if error is non-zero
         void error_throw( Error code ) { if ( code != Error::None ) throw Exception{ code }; }
@@ -232,15 +285,33 @@ namespace son8::cyrillic {
             "son8::cyrillic: language not set",
             "son8::cyrillic: invalid word",
             "son8::cyrillic: invalid byte",
-            "son8::cyrillic: convert failed"
+            "son8::cyrillic: convert failed",
+            "son8::cyrillic: validate misconfigured",
         }};
     } // anonymous namespace
     // state implementation
     namespace this_thread {
         // state setters
         void state( Language language ) noexcept { Language_ = language; }
+        void state( Validate validate ) noexcept { Validate_ = validate; }
+        void state( ValidateVeiled flags ) noexcept {
+            ValidateVeiledHalf process = flags >> Validate_Half_Bits;
+            auto ignores = static_cast< ValidateVeiledHalf >( flags );
+            bool misconfigured = ( process & ignores ) != 0;
+            if ( misconfigured ) Error_ = Error::ValidateMisconfigured;
+            Validate_ = static_cast< Validate >( flags );
+        }
+        void state( ValidateFlagAppend flag ) noexcept {
+            validate_flag_impl< flag.type >( flag.data );
+        }
+        void state( ValidateFlagIgnore flag ) noexcept {
+            validate_flag_impl< flag.type >( flag.data );
+        }
         // state getters
         auto state_language( ) noexcept -> Language { return Language_; }
+        auto state_validate( ) noexcept -> Validate { return Validate_; }
+        auto state_validate_veiled( ) noexcept -> ValidateVeiled { return static_cast< ValidateVeiled >( Validate_ ); }
+        // state only getters
         auto state_error( ) noexcept -> Error { return Error_; }
     }
     // encode implementation
