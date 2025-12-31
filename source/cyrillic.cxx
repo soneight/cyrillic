@@ -119,7 +119,11 @@ namespace son8::cyrillic {
                     continue;
                 }
                 default: {
+                    if ( validate_append{}( Validate_, ValidateFlags::AsciiLatin ) ) {
+                        if ( find_latin( word  ) ) continue;
+                    }
                     // TODO
+
                     break;
                 }}
                 return Error::InvalidWord;
