@@ -38,10 +38,10 @@ namespace son8::cyrillic {
         AsciiEqualSymbol        = 0x11u, // 3D    (   =   )
         AsciiCommercialSymbol   = 0x12u, // 40    (   @   )
         // pair
-        AsciiAngleBracketPair   = 0x13u, // 3C,3E ( < , > )
-        AsciiCurlyBracketPair   = 0x14u, // 7B,7D ( { , } )
-        AsciiRoundBracketPair   = 0x15u, // 28,29 ( ( , ) )
-        AsciiArrayBracketPair   = 0x16u, // 5B,5D ( [ , ] )
+        AsciiRoundBracketPair   = 0x13u, // 28,29 ( ( , ) )
+        AsciiAngleBracketPair   = 0x14u, // 3C,3E ( < , > )
+        AsciiArrayBracketPair   = 0x15u, // 5B,5D ( [ , ] )
+        AsciiCurlyBracketPair   = 0x16u, // 7B,7D ( { , } )
         // range
         AsciiUpperRange         = 0x17u, // 41-5A ( A - Z )
         AsciiLowerRange         = 0x18u, // 61-7A ( a - z )

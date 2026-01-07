@@ -37,15 +37,15 @@ namespace son8::cyrillic {
         // -- check flag is set
         template< bool Append >
         struct validate {
-            bool operator()( Validate flags, ValidateFlags bit ) const noexcept {
-                auto f = static_cast< ValidateVeiled >( flags );
+            bool operator()( ValidateFlags bit ) const noexcept {
+                auto f = this_thread::state_validate_veiled( );
                 auto b = static_cast< ValidateFlagsVeiled >( bit );
                 if constexpr ( Append ) b += Validate_Half_Bits;
                 return f & ( 1ull << b );
             }
         };
         using validate_append = validate< ValidateFlagAppend::append >;
-        using validate_ignore = validate< ValidateFlagIgnore::append >;
+        using validate_ignore = validate< ValidateFlagAppend::ignore >;
         // encode detail implementation and it helpers
         // -- helpers
         constexpr Encoded::In const Encode_Sumvolu_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
@@ -118,17 +118,93 @@ namespace son8::cyrillic {
                 //      only process flags with ignore 0
                 //      make thread local bitfield of all flag states
                 //      that changes only on setting flag related state
-                return false;
-                // for ( auto i = 0u; i < validate_flags_size( ); ++i ) {
-                //     auto flag = static_cast< ValidateFlags >( i );
-                // }
+                using charType = typename Encoded::Data::value_type;
+                auto const charHi = static_cast< charType >( word >> 8u );
+                auto const charLo = static_cast< charType >( word );
+                if ( charHi ) {
+                    bool const ignore = validate_ignore{ }( ValidateFlags::WideBytes );
+                    bool const append = validate_append{ }( ValidateFlags::WideBytes );
+                    if ( not ignore and not append ) return false;
+                    if ( append ) {
+                        tmp.push_back( charHi );
+                        tmp.push_back( charLo );
+                    }
+                    return true;
+                }
+                for ( auto i = 0u; i < validate_flags_size( ) - 1; ++i ) {
+                    auto const flag = static_cast< ValidateFlags >( i );
+                    if ( validate_ignore{ }( flag ) ) continue;
+                    bool const append = validate_append{ }( flag );
+                    auto append_call = [append,&tmp]( auto ...args ) -> bool {
+                        if ( not append ) return false;
+                        ( tmp.push_back( args ), ... );
+                        return true;
+                    };
+                    if ( 0x00u <= i && i <= 0x12u ) {
+                        using namespace std::string_view_literals;
+                        constexpr std::string_view symbol{ "\x00\x20\x5F\x60\x27\x22\x5C\x07\x08\x09\x0A\x0B\x0C\x0D\x23\x24\x25\x3D\x40"sv };
+                        static_assert( symbol.size( ) == 19 );
+                        auto const index = i;
+                        assert( index < symbol.size( ) );
+                        if ( charLo == symbol[index] ) return append_call( charLo );
+                        continue;
+                    } else if ( 0x13u <= i && i <= 0x16u ) {
+                        using namespace std::string_view_literals;
+                        constexpr std::string_view pair{ "\x28\x29\x3C\x3E\x5B\x5D\x7B\x7D"sv };
+                        static_assert( pair.size( ) == 8 );
+                        auto const index = ( i - 0x13u ) * 2;
+                        assert( index + 1 < pair.size( ) );
+                        if ( charLo == pair[index] || charLo == pair[index + 1] ) return append_call( charLo );
+                        continue;
+                    }
+                    using vf = ValidateFlags;
+                    switch ( flag ) {
+                    case vf::AsciiUpperRange: {
+                        if ( 0x41u <= charLo && charLo <= 0x5Au ) return append_call( 'X', charLo );
+                        continue;
+                    }
+                    case vf::AsciiLowerRange: {
+                        if ( 0x61u <= charLo && charLo <= 0x7Au ) return append_call( 'x', charLo );
+                        continue;
+                    }
+                    case vf::AsciiDigitRange: {
+                        if ( 0x30u <= charLo && charLo <= 0x39u ) return append_call( charLo );
+                        continue;
+                    }
+                    case vf::AsciiTextList: {
+                        // TODO
+                        continue;
+                    }
+                    case vf::AsciiBitwiseList: {
+                        // TODO
+                        continue;
+                    }
+                    case vf::AsciiArithmeticList: {
+                        // TODO
+                        continue;
+                    }
+                    case vf::AsciiControlBytes: {
+                        // TODO
+                        continue;
+                    }
+                    case vf::AsciiExtendedBytes: {
+                        if ( charLo >= 0x80u ) return append_call( charLo );
+                        continue;
+                    }
+                    default: {
+                        assert( flag != vf::WideBytes );
+                        return false;
+                    }}
+                }
+                return true;
             };
 
             for ( Unt2 word : in ) {
+                // continue Success, break Failure
                 if ( find_plain( word ) ) continue;
                 if ( find_mixed( word ) ) continue;
                 switch ( this_thread::state_validate( ) ) {
-                case Validate::None: return Error::InvalidWord;
+                case Validate::None: break;
                 case Validate::IgnoreAll: continue;
                 case Validate::AppendAll: {
                     if ( find_latin( word ) ) continue;

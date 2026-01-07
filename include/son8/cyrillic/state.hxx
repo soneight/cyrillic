@@ -20,6 +20,7 @@ namespace son8::cyrillic {
         void state( Validate validate ) noexcept;
         void state( ValidateFlagAppend flag ) noexcept;
         void state( ValidateFlagIgnore flag ) noexcept;
+        void state( ValidateFlagZeroed flag ) noexcept;
         void state( ValidateVeiled flags ) noexcept;
         // state getters
         auto state_language( ) noexcept -> Language;
