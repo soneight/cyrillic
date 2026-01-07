@@ -36,20 +36,20 @@ namespace son8::cyrillic {
         AsciiCurrencySymbol     = 0x0Fu, // 24    (   $   )
         AsciiPercentSymbol      = 0x10u, // 25    (   %   )
         AsciiEqualSymbol        = 0x11u, // 3D    (   =   )
-        AsciiCommercialSymbol   = 0x22u, // 40    (   @   )
+        AsciiCommercialSymbol   = 0x12u, // 40    (   @   )
         // pair
         AsciiAngleBracketPair   = 0x13u, // 3C,3E ( < , > )
         AsciiCurlyBracketPair   = 0x14u, // 7B,7D ( { , } )
         AsciiRoundBracketPair   = 0x15u, // 28,29 ( ( , ) )
         AsciiArrayBracketPair   = 0x16u, // 5B,5D ( [ , ] )
-        // symbols
-        AsciiUpperSymbols       = 0x17u, // 41-5A ( A - Z )
-        AsciiLowerSymbols       = 0x18u, // 61-7A ( a - z )
-        AsciiDigitSymbols       = 0x19u, // 30-39 ( 0 - 9 )
-        AsciiTextSymbols        = 0x1Au, // 21,2C,2E,3A,3B,3F ( !,,,.,:,;,? )
-        AsciiBitwiseSymbols     = 0x1Bu, // 26,5E,7C,7E ( &,^,|,~ )
-        AsciiArithmeticSymbols  = 0x1Cu, // 2A,2B,2D,2F ( *,+,-,/ )
-        AsciiOtherSymbols       = 0x1Cu, // 23,24,25,3D,60 ( #,$,%,=,` )
+        // range
+        AsciiUpperRange         = 0x17u, // 41-5A ( A - Z )
+        AsciiLowerRange         = 0x18u, // 61-7A ( a - z )
+        AsciiDigitRange         = 0x19u, // 30-39 ( 0 - 9 )
+        // list
+        AsciiTextList           = 0x1Au, // 21,2C,2E,3A,3B,3F ( !,,,.,:,;,? )
+        AsciiBitwiseList        = 0x1Bu, // 26,5E,7C,7E ( &,^,|,~ )
+        AsciiArithmeticList     = 0x1Cu, // 2A,2B,2D,2F ( *,+,-,/ )
         // bytes
         AsciiControlBytes       = 0x1Du, //
         AsciiExtendedBytes      = 0x1Eu, // 80-FF
@@ -57,26 +57,21 @@ namespace son8::cyrillic {
         // IMPORTANT: must be last
         Size_
     };
-    static_assert( static_cast< ValidateFlagsVeiled >( ValidateFlags::Size_ ) == Validate_Half_Bits );
 
-    struct ValidateFlagAppend final {
-        static constexpr bool append{ true };
-        static constexpr bool ignore{ false };
-        ValidateFlags data;
-        ValidateFlagAppend( ) = delete;
+    template< bool Append, bool Ignore >
+    class ValidateFlag final {
+        using Data_ = ValidateFlags;
+        Data_ data_;
+    public:
+        static constexpr bool append{ Append };
+        static constexpr bool ignore{ Ignore };
+        explicit ValidateFlag( Data_ flag ) noexcept : data_{ flag } { }
+        operator Data_( ) const noexcept { return data_; }
     };
-    struct ValidateFlagIgnore final {
-        static constexpr bool append{ false };
-        static constexpr bool ignore{ true };
-        ValidateFlags data;
-        ValidateFlagIgnore( ) = delete;
-    };
-    struct ValidateFlagZeroed final {
-        static constexpr bool append{ false };
-        static constexpr bool ignore{ false };
-        ValidateFlags data;
-        ValidateFlagZeroed( ) = delete;
-    };
+
+    using ValidateFlagAppend = ValidateFlag< true, false >;
+    using ValidateFlagIgnore = ValidateFlag< false, true >;
+    using ValidateFlagZeroed = ValidateFlag< false, false >;
 
 }
 

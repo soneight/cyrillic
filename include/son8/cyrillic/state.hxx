@@ -20,15 +20,15 @@ namespace son8::cyrillic {
         void state( Validate validate ) noexcept;
         void state( ValidateFlagAppend flag ) noexcept;
         void state( ValidateFlagIgnore flag ) noexcept;
-        [[deprecated]]
         void state( ValidateVeiled flags ) noexcept;
         // state getters
         auto state_language( ) noexcept -> Language;
         auto state_error( ) noexcept -> Error;
         auto state_validate( ) noexcept -> Validate;
+        auto state_validate_veiled( ) noexcept -> ValidateVeiled;
     }
 }
 
 #endif//SON8_CYRILLIC_STATE_HXX
 
-// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
+// Ⓒ 2025-2026 Oleg'Ease'Kharchuk ᦒ
