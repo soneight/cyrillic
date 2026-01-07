@@ -41,8 +41,8 @@ namespace son8::cyrillic {
                 return f & ( 1ull << b );
             }
         };
-        using validate_append = validate< ValidateFlagAppend::type >;
-        using validate_ignore = validate< ValidateFlagIgnore::type >;
+        using validate_append = validate< ValidateFlagAppend::append >;
+        using validate_ignore = validate< ValidateFlagIgnore::append >;
         // encode detail implementation and it helpers
         // -- helpers
         constexpr Encoded::In const Encode_Sumvolu_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
@@ -106,6 +106,11 @@ namespace son8::cyrillic {
                 tmp.push_back( static_cast< unsigned char >( word ) );
                 return true;
             };
+            auto find_other = [&tmp]( auto word ) -> bool {
+                if ( word >> 8u ) tmp.push_back( word >> 8u );
+                tmp.push_back( static_cast< unsigned char >( word ) );
+                return true;
+            };
 
             for ( Unt2 word : in ) {
                 if ( find_plain( word ) ) continue;
@@ -114,15 +119,9 @@ namespace son8::cyrillic {
                 case Validate::IgnoreAll: continue;
                 case Validate::AppendAll: {
                     if ( find_latin( word ) ) continue;
-                    if ( word >> 8u ) tmp.push_back( word >> 8u );
-                    tmp.push_back( static_cast< unsigned char >( word ) );
-                    continue;
+                    if ( find_other( word ) ) continue;
                 }
                 default: {
-                    if ( validate_append{}( Validate_, ValidateFlags::AsciiLatin ) ) {
-                        if ( find_latin( word  ) ) continue;
-                    }
-                    // TODO
 
                     break;
                 }}
@@ -153,8 +152,8 @@ namespace son8::cyrillic {
         }};
         using ArrayViewDecodeSumvolu = std::array< Decoded::View, 8 >;
         constexpr ArrayViewDecodeSumvolu const Decode_Sumvolu_Mixed_{{
-           u"жчщюяэёыъ", // ru jj lower
-           u"ЖЧЩЮЯЭЁЫЪ", // ru jj upper
+           u"жчщюяэёыъ",// ru jj lower
+           u"ЖЧЩЮЯЭЁЫЪ",// ru jj upper
            u"ъыэёєіїґ", // ru jx lower
            u"ЁЄІЇЪЫЭҐ", // ru jx upper
            u"жчщюяєїіґ",// ua jj lower
@@ -262,14 +261,18 @@ namespace son8::cyrillic {
         }
         // validate detail implementation
         // -- flag
-        template< bool Append >
+        template< bool Append, bool Ignore >
         void validate_flag_impl( ValidateFlags flag ) {
+            static_assert ( not ( Append and Ignore )
+                , "son8::cyrillic: validate flag implementation requires append and ignore to be not set at the same time" );
+            auto shift = 1ull;
             auto bit = static_cast< ValidateFlagsVeiled >( flag );
-            auto bitLo = 1ull << bit;
-            auto bitHi = 1ull << ( bit + Validate_Half_Bits );
+            auto bitLo = shift << bit;
+            auto bitHi = shift << ( bit + Validate_Half_Bits );
             auto value = static_cast< ValidateVeiled >( Validate_ );
-            if constexpr ( Append ) value |= bitHi, value &=~bitLo;
-            else                    value &=~bitHi, value |= bitLo;
+            if/*_*/ constexpr ( Append and not Ignore ) value |= bitHi, value &=~bitLo;
+            else if constexpr ( Ignore and not Append ) value &=~bitHi, value |= bitLo;
+            else value &= ~( bitHi | bitLo );
             Validate_ = static_cast< Validate >( value );
         }
         // error implementation
@@ -294,17 +297,20 @@ namespace son8::cyrillic {
         void state( Language language ) noexcept { Language_ = language; }
         void state( Validate validate ) noexcept { Validate_ = validate; }
         void state( ValidateVeiled flags ) noexcept {
-            ValidateVeiledHalf process = flags >> Validate_Half_Bits;
-            auto ignores = static_cast< ValidateVeiledHalf >( flags );
-            bool misconfigured = ( process & ignores ) != 0;
+            auto append = static_cast< ValidateVeiledHalf >( flags >> Validate_Half_Bits );
+            auto ignore = static_cast< ValidateVeiledHalf >( flags );
+            bool misconfigured = ( append & ignore ) != 0;
             if ( misconfigured ) Error_ = Error::ValidateMisconfigured;
             Validate_ = static_cast< Validate >( flags );
         }
         void state( ValidateFlagAppend flag ) noexcept {
-            validate_flag_impl< flag.type >( flag.data );
+            validate_flag_impl< flag.append, flag.ignore >( flag.data );
         }
         void state( ValidateFlagIgnore flag ) noexcept {
-            validate_flag_impl< flag.type >( flag.data );
+            validate_flag_impl< flag.append, flag.ignore >( flag.data );
+        }
+        void state( ValidateFlagZeroed flag ) noexcept {
+            validate_flag_impl< flag.append, flag.ignore >( flag.data );
         }
         // state getters
         auto state_language( ) noexcept -> Language { return Language_; }
@@ -387,4 +393,4 @@ namespace son8::cyrillic {
 
 } // namespace
 
-// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
+// Ⓒ 2025-2026 Oleg'Ease'Kharchuk ᦒ
