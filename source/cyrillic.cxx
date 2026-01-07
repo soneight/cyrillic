@@ -366,7 +366,7 @@ namespace son8::cyrillic {
         void validate_flag_impl( ValidateFlags flag ) {
             static_assert ( not ( Append and Ignore )
                 , "son8::cyrillic: validate flag implementation requires append and ignore to be not set at the same time" );
-            auto shift = 1ull;
+            ValidateVeiled shift{ 1u };
             auto bit = static_cast< ValidateFlagsVeiled >( flag );
             auto bitLo = shift << bit;
             auto bitHi = shift << ( bit + Validate_Half_Bits );
