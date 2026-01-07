@@ -15,8 +15,9 @@ namespace son8::cyrillic {
         // state variables
         thread_local Language Language_{ Language::None };
         thread_local Error Error_{ Error::None };
+        thread_local Validate Validate_{ Validate::None };
         // global helpers
-        void state( Error error ) noexcept { Error_ = error; }
+        // -- compile-time sorted check for static assert
         template< typename T >
         constexpr auto check_sorted( std::basic_string_view< T > t ) -> bool {
             auto second = t.begin( ) + 1;
@@ -26,8 +27,26 @@ namespace son8::cyrillic {
             }
             return true;
         }
+        // -- compile-time language size check for static assert
         constexpr auto check_langsize( unsigned size ) -> bool { return Language::Size_ == static_cast< Language >( size ); }
-        // encode implementation and it helpers
+        static_assert( check_langsize( 3 ) );
+        // -- validate flags size
+        constexpr auto validate_flags_size( ) { return static_cast< ValidateFlagsVeiled >( ValidateFlags::Size_ ); }
+        static_assert( validate_flags_size( ) == Validate_Half_Bits
+            , "son8::cyrillic validate flags size requires to be equal to half of the Validate bits size" );
+        // -- check flag is set
+        template< bool Append >
+        struct validate {
+            bool operator()( ValidateFlags bit ) const noexcept {
+                auto f = this_thread::state_validate_veiled( );
+                auto b = static_cast< ValidateFlagsVeiled >( bit );
+                if constexpr ( Append ) b += Validate_Half_Bits;
+                return f & ( 1ull << b );
+            }
+        };
+        using validate_append = validate< ValidateFlagAppend::append >;
+        using validate_ignore = validate< ValidateFlagAppend::ignore >;
+        // encode detail implementation and it helpers
         // -- helpers
         constexpr Encoded::In const Encode_Sumvolu_Plain_{ u"АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзийклмнопрстуфхцчшщьюя" };
         static_assert( check_sorted( Encode_Sumvolu_Plain_ ) && Encode_Sumvolu_Plain_.size( ) == 58 );
@@ -75,17 +94,138 @@ namespace son8::cyrillic {
                 auto end = Encode_Sumvolu_Mixed_.end( );
                 auto it = std::find( beg, end, word );
                 if ( it == end ) return false;
-                static_assert( check_langsize( 3 ) );
                 bool lang = static_cast< unsigned >( this_thread::state_language( ) ) - 1u;
                 auto col = it - beg;
                 auto row = Letters_Mixed_Flags_[col] != lang ? 1 : 0;
                 tmp.append( Encode_Letters_Mixed_[row][col] );
                 return true;
             };
+            auto find_latin = [&tmp]( auto word ) -> bool {
+                bool upper = 'A' <= word && word <= 'Z';
+                bool lower = 'a' <= word && word <= 'z';
+                if ( not ( upper || lower ) ) return false;
+                tmp.push_back( lower ? 'x' : 'X' );
+                tmp.push_back( static_cast< unsigned char >( word ) );
+                return true;
+            };
+            auto find_other = [&tmp]( auto word ) -> bool {
+                if ( word >> 8u ) tmp.push_back( word >> 8u );
+                tmp.push_back( static_cast< unsigned char >( word ) );
+                return true;
+            };
+            auto find_valid = [&tmp]( auto word ) -> bool {
+                // TODO implement efficient validate checking system
+                //      only process flags with ignore 0
+                //      make thread local bitfield of all flag states
+                //      that changes only on setting flag related state
+                using charType = typename Encoded::Data::value_type;
+                auto const charHi = static_cast< charType >( word >> 8u );
+                auto const charLo = static_cast< charType >( word );
+                if ( charHi ) {
+                    bool const ignore = validate_ignore{ }( ValidateFlags::WideBytes );
+                    bool const append = validate_append{ }( ValidateFlags::WideBytes );
+                    if ( not ignore and not append ) return false;
+                    if ( append ) {
+                        tmp.push_back( charHi );
+                        tmp.push_back( charLo );
+                    }
+                    return true;
+                }
+                for ( auto i = 0u; i < validate_flags_size( ) - 1; ++i ) {
+                    auto const loop_index = i;
+                    auto const flag = static_cast< ValidateFlags >( loop_index );
+                    if ( validate_ignore{ }( flag ) ) continue;
+                    bool const append = validate_append{ }( flag );
+                    auto append_call = [append,&tmp]( auto ...args ) -> bool {
+                        if ( not append ) return false;
+                        ( tmp.push_back( args ), ... );
+                        return true;
+                    };
+                    if ( 0x00u <= loop_index && loop_index <= 0x12u ) {
+                        using namespace std::string_view_literals;
+                        constexpr std::string_view symbol{ "\x00\x20\x5F\x60\x27\x22\x5C\x07\x08\x09\x0A\x0B\x0C\x0D\x23\x24\x25\x3D\x40"sv };
+                        static_assert( symbol.size( ) == 19 );
+                        auto const index = loop_index;
+                        assert( index < symbol.size( ) );
+                        if ( charLo == symbol[index] ) return append_call( charLo );
+                        continue;
+                    } else if ( 0x13u <= loop_index && loop_index <= 0x16u ) {
+                        using namespace std::string_view_literals;
+                        constexpr std::string_view pair{ "\x28\x29\x3C\x3E\x5B\x5D\x7B\x7D"sv };
+                        static_assert( pair.size( ) == 8 );
+                        auto const index = ( loop_index - 0x13u ) * 2;
+                        assert( index + 1 < pair.size( ) );
+                        if ( charLo == pair[index] || charLo == pair[index + 1] ) return append_call( charLo );
+                        continue;
+                    }
+                    using vf = ValidateFlags;
+                    switch ( flag ) {
+                    case vf::AsciiDigitRange: {
+                        if ( 0x30u <= charLo && charLo <= 0x39u ) return append_call( charLo );
+                        continue;
+                    }
+                    case vf::AsciiUpperRange: {
+                        if ( 0x41u <= charLo && charLo <= 0x5Au ) return append_call( 'X', charLo );
+                        continue;
+                    }
+                    case vf::AsciiLowerRange: {
+                        if ( 0x61u <= charLo && charLo <= 0x7Au ) return append_call( 'x', charLo );
+                        continue;
+                    }
+                    case vf::AsciiTextList: [[fallthrough]] ;
+                    case vf::AsciiBitwiseList: [[fallthrough]] ;
+                    case vf::AsciiArithmeticList: {
+                        using namespace std::string_view_literals;
+                        using ArrayList = std::array< StringByteView, 3 >;
+                        constexpr ArrayList list{{
+                            "\x21\x2C\x2E\x3A\x3B\x3F"sv,
+                            "\x26\x5E\x7C\x7E"sv,
+                            "\x2A\x2B\x2D\x2F"sv
+                        }};
+                        using vfv = ValidateFlagsVeiled;
+                        constexpr auto text = static_cast< vfv >( vf::AsciiTextList );
+                        constexpr auto bitw = static_cast< vfv >( vf::AsciiBitwiseList );
+                        constexpr auto arit = static_cast< vfv >( vf::AsciiArithmeticList );
+                        static_assert( list.size( ) ==  1 + arit - text and text < bitw and bitw < arit );
+                        auto const index = loop_index - text;
+                        auto const &l = list[index];
+                        if ( std::find( l.begin( ), l.end( ), charLo ) != l.end( ) ) return append_call( charLo );
+                        continue;
+                    }
+                    case vf::AsciiControlBytes: {
+                        if ( 0x0Eu <= charLo && charLo <= 0x1F
+                          || 0x01u <= charLo && charLo <= 0x06
+                          || 0x7Fu == charLo  ) return append_call( charLo );
+                        continue;
+                    }
+                    case vf::AsciiExtendedBytes: {
+                        if ( charLo >= 0x80u ) return append_call( charLo );
+                        continue;
+                    }
+                    default: {
+                        assert( flag != vf::WideBytes );
+                        return false;
+                    }}
+                }
+                return true;
+            };
 
-            for ( auto word : in ) {
+            for ( Unt2 word : in ) {
+                // continue Success, break Failure
                 if ( find_plain( word ) ) continue;
                 if ( find_mixed( word ) ) continue;
+                switch ( this_thread::state_validate( ) ) {
+                case Validate::None: break;
+                case Validate::IgnoreAll: continue;
+                case Validate::AppendAll: {
+                    if ( find_latin( word ) ) continue;
+                    if ( find_other( word ) ) continue;
+                    break;
+                }
+                default: {
+                    if ( find_valid( word ) ) continue;
+                    break;
+                }}
                 return Error::InvalidWord;
             }
             // return
@@ -96,8 +236,8 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
-        // decode implementation and it helpers
-        // -- helpers
+        // decode detail implementation and it helpers
+        // -- detail helpers
         constexpr Decoded::In   Decode_Letters_Plain_{ "ABCDEFGHIKLMNOPQRSTUVWYZabcdefghiklmnopqrstuvwyz" };
         static_assert( check_sorted( Decode_Letters_Plain_ ) );
         constexpr Decoded::View Decode_Sumvolu_Plain_{u"АБЦДЕФГХЙКЛМНОПЬРСТИВШУЗабцдефгхйклмнопьрстившуз" };
@@ -113,8 +253,8 @@ namespace son8::cyrillic {
         }};
         using ArrayViewDecodeSumvolu = std::array< Decoded::View, 8 >;
         constexpr ArrayViewDecodeSumvolu const Decode_Sumvolu_Mixed_{{
-           u"жчщюяэёыъ", // ru jj lower
-           u"ЖЧЩЮЯЭЁЫЪ", // ru jj upper
+           u"жчщюяэёыъ",// ru jj lower
+           u"ЖЧЩЮЯЭЁЫЪ",// ru jj upper
            u"ъыэёєіїґ", // ru jx lower
            u"ЁЄІЇЪЫЭҐ", // ru jx upper
            u"жчщюяєїіґ",// ua jj lower
@@ -131,7 +271,7 @@ namespace son8::cyrillic {
             Pusher_8,
             Error_DS,
         };
-        // -- implementation
+        // -- detail implementation
         [[nodiscard]]
         auto decode_impl( Decoded::Out out, Decoded::In in ) -> Error {
             using State = DecodedState;
@@ -202,7 +342,7 @@ namespace son8::cyrillic {
             out = std::move( tmp );
             return Error::None;
         }
-        // convert implementation
+        // convert detail implementation
         // -- convert
         template< typename Out, typename In >
         [[nodiscard]] auto convert_impl( Out &out, In in ) -> Error {
@@ -220,6 +360,22 @@ namespace son8::cyrillic {
             if ( out.empty( ) ) return Error::ConvertFailed;
             return Error::None;
         }
+        // validate detail implementation
+        // -- flag
+        template< bool Append, bool Ignore >
+        void validate_flag_impl( ValidateFlags flag ) {
+            static_assert ( not ( Append and Ignore )
+                , "son8::cyrillic: validate flag implementation requires append and ignore to be not set at the same time" );
+            ValidateVeiled shift{ 1u };
+            auto bit = static_cast< ValidateFlagsVeiled >( flag );
+            auto bitLo = shift << bit;
+            auto bitHi = shift << ( bit + Validate_Half_Bits );
+            auto value = this_thread::state_validate_veiled( );
+            if/*_*/ constexpr ( Append and not Ignore ) value |= bitHi, value &=~bitLo;
+            else if constexpr ( Ignore and not Append ) value &=~bitHi, value |= bitLo;
+            else value &= ~( bitHi | bitLo );
+            this_thread::state( static_cast< Validate >( value ) );
+        }
         // error implementation
         // -- throw only if error is non-zero
         void error_throw( Error code ) { if ( code != Error::None ) throw Exception{ code }; }
@@ -232,15 +388,37 @@ namespace son8::cyrillic {
             "son8::cyrillic: language not set",
             "son8::cyrillic: invalid word",
             "son8::cyrillic: invalid byte",
-            "son8::cyrillic: convert failed"
+            "son8::cyrillic: convert failed",
+            "son8::cyrillic: validate misconfigured",
         }};
     } // anonymous namespace
     // state implementation
     namespace this_thread {
         // state setters
+        static void state( Error error ) noexcept { Error_ = error; }
         void state( Language language ) noexcept { Language_ = language; }
+        void state( Validate validate ) noexcept { Validate_ = validate; }
+        void state( ValidateVeiled flags ) noexcept {
+            auto append = static_cast< ValidateVeiledHalf >( flags >> Validate_Half_Bits );
+            auto ignore = static_cast< ValidateVeiledHalf >( flags );
+            bool misconfigured = ( append & ignore ) != 0;
+            if ( misconfigured ) state( Error::ValidateMisconfigured );
+            state( static_cast< Validate >( flags ) );
+        }
+        void state( ValidateFlagAppend flag ) noexcept {
+            validate_flag_impl< flag.append, flag.ignore >( flag );
+        }
+        void state( ValidateFlagIgnore flag ) noexcept {
+            validate_flag_impl< flag.append, flag.ignore >( flag );
+        }
+        void state( ValidateFlagZeroed flag ) noexcept {
+            validate_flag_impl< flag.append, flag.ignore >( flag );
+        }
         // state getters
         auto state_language( ) noexcept -> Language { return Language_; }
+        auto state_validate( ) noexcept -> Validate { return Validate_; }
+        auto state_validate_veiled( ) noexcept -> ValidateVeiled { return static_cast< ValidateVeiled >( state_validate( ) ); }
+        // state only getters
         auto state_error( ) noexcept -> Error { return Error_; }
     }
     // encode implementation
@@ -255,7 +433,7 @@ namespace son8::cyrillic {
     // -- thread
     auto encode( Encoded::In in ) -> Encoded {
         Encoded ret;
-        state( encode_impl( ret.out( ), in ) );
+        this_thread::state( encode_impl( ret.out( ), in ) );
         return ret;
     }
     // encoded implementation
@@ -280,7 +458,7 @@ namespace son8::cyrillic {
     // -- thread
     auto decode( Decoded::In in ) -> Decoded {
         Decoded ret;
-        state( decode_impl( ret.out( ), in ) );
+        this_thread::state( decode_impl( ret.out( ), in ) );
         return ret;
     }
     // decoded implementation
@@ -302,12 +480,12 @@ namespace son8::cyrillic {
     // convert implementation
     [[nodiscard]] auto string_byte( StringWordView in ) -> StringByte {
         StringByte out;
-        state ( convert_impl( out, in ) );
+        this_thread::state( convert_impl( out, in ) );
         return out;
     }
     [[nodiscard]] auto string_word( StringByteView in ) -> StringWord {
         StringWord out;
-        state ( convert_impl( out, in ) );
+        this_thread::state( convert_impl( out, in ) );
         return out;
     }
     // exception implementation
@@ -317,4 +495,4 @@ namespace son8::cyrillic {
 
 } // namespace
 
-// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
+// Ⓒ 2025-2026 Oleg'Ease'Kharchuk ᦒ
