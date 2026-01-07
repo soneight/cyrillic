@@ -132,7 +132,8 @@ namespace son8::cyrillic {
                     return true;
                 }
                 for ( auto i = 0u; i < validate_flags_size( ) - 1; ++i ) {
-                    auto const flag = static_cast< ValidateFlags >( i );
+                    auto const loop_index = i;
+                    auto const flag = static_cast< ValidateFlags >( loop_index );
                     if ( validate_ignore{ }( flag ) ) continue;
                     bool const append = validate_append{ }( flag );
                     auto append_call = [append,&tmp]( auto ...args ) -> bool {
@@ -140,25 +141,29 @@ namespace son8::cyrillic {
                         ( tmp.push_back( args ), ... );
                         return true;
                     };
-                    if ( 0x00u <= i && i <= 0x12u ) {
+                    if ( 0x00u <= loop_index && loop_index <= 0x12u ) {
                         using namespace std::string_view_literals;
                         constexpr std::string_view symbol{ "\x00\x20\x5F\x60\x27\x22\x5C\x07\x08\x09\x0A\x0B\x0C\x0D\x23\x24\x25\x3D\x40"sv };
                         static_assert( symbol.size( ) == 19 );
-                        auto const index = i;
+                        auto const index = loop_index;
                         assert( index < symbol.size( ) );
                         if ( charLo == symbol[index] ) return append_call( charLo );
                         continue;
-                    } else if ( 0x13u <= i && i <= 0x16u ) {
+                    } else if ( 0x13u <= loop_index && loop_index <= 0x16u ) {
                         using namespace std::string_view_literals;
                         constexpr std::string_view pair{ "\x28\x29\x3C\x3E\x5B\x5D\x7B\x7D"sv };
                         static_assert( pair.size( ) == 8 );
-                        auto const index = ( i - 0x13u ) * 2;
+                        auto const index = ( loop_index - 0x13u ) * 2;
                         assert( index + 1 < pair.size( ) );
                         if ( charLo == pair[index] || charLo == pair[index + 1] ) return append_call( charLo );
                         continue;
                     }
                     using vf = ValidateFlags;
                     switch ( flag ) {
+                    case vf::AsciiDigitRange: {
+                        if ( 0x30u <= charLo && charLo <= 0x39u ) return append_call( charLo );
+                        continue;
+                    }
                     case vf::AsciiUpperRange: {
                         if ( 0x41u <= charLo && charLo <= 0x5Au ) return append_call( 'X', charLo );
                         continue;
@@ -167,24 +172,30 @@ namespace son8::cyrillic {
                         if ( 0x61u <= charLo && charLo <= 0x7Au ) return append_call( 'x', charLo );
                         continue;
                     }
-                    case vf::AsciiDigitRange: {
-                        if ( 0x30u <= charLo && charLo <= 0x39u ) return append_call( charLo );
-                        continue;
-                    }
-                    case vf::AsciiTextList: {
-                        // TODO
-                        continue;
-                    }
-                    case vf::AsciiBitwiseList: {
-                        // TODO
-                        continue;
-                    }
+                    case vf::AsciiTextList: [[fallthrough]] ;
+                    case vf::AsciiBitwiseList: [[fallthrough]] ;
                     case vf::AsciiArithmeticList: {
-                        // TODO
+                        using namespace std::string_view_literals;
+                        using ArrayList = std::array< StringByteView, 3 >;
+                        constexpr ArrayList list{{
+                            "\x21\x2C\x2E\x3A\x3B\x3F"sv,
+                            "\x26\x5E\x7C\x7E"sv,
+                            "\x2A\x2B\x2D\x2F"sv
+                        }};
+                        using vfv = ValidateFlagsVeiled;
+                        constexpr auto text = static_cast< vfv >( vf::AsciiTextList );
+                        constexpr auto bitw = static_cast< vfv >( vf::AsciiBitwiseList );
+                        constexpr auto arit = static_cast< vfv >( vf::AsciiArithmeticList );
+                        static_assert( list.size( ) ==  1 + arit - text and text < bitw and bitw < arit );
+                        auto const index = loop_index - text;
+                        auto const &l = list[index];
+                        if ( std::find( l.begin( ), l.end( ), charLo ) != l.end( ) ) return append_call( charLo );
                         continue;
                     }
                     case vf::AsciiControlBytes: {
-                        // TODO
+                        if ( 0x0Eu <= charLo && charLo <= 0x1F
+                          || 0x01u <= charLo && charLo <= 0x06
+                          || 0x7Fu == charLo  ) return append_call( charLo );
                         continue;
                     }
                     case vf::AsciiExtendedBytes: {

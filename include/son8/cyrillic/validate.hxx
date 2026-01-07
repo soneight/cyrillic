@@ -43,9 +43,9 @@ namespace son8::cyrillic {
         AsciiArrayBracketPair   = 0x15u, // 5B,5D ( [ , ] )
         AsciiCurlyBracketPair   = 0x16u, // 7B,7D ( { , } )
         // range
-        AsciiUpperRange         = 0x17u, // 41-5A ( A - Z )
-        AsciiLowerRange         = 0x18u, // 61-7A ( a - z )
-        AsciiDigitRange         = 0x19u, // 30-39 ( 0 - 9 )
+        AsciiDigitRange         = 0x17u, // 30-39 ( 0 - 9 )
+        AsciiUpperRange         = 0x18u, // 41-5A ( A - Z )
+        AsciiLowerRange         = 0x19u, // 61-7A ( a - z )
         // list
         AsciiTextList           = 0x1Au, // 21,2C,2E,3A,3B,3F ( !,,,.,:,;,? )
         AsciiBitwiseList        = 0x1Bu, // 26,5E,7C,7E ( &,^,|,~ )
