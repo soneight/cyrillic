@@ -10,7 +10,8 @@
 #include <son8/cyrillic/error.hxx>
 #include <son8/cyrillic/exception.hxx>
 #include <son8/cyrillic/state.hxx>
+#include <son8/cyrillic/validate.hxx>
 
 #endif//SON8_CYRILLIC_HXX
 
-// Ⓒ 2025 Oleg'Ease'Kharchuk ᦒ
+// Ⓒ 2025-2026 Oleg'Ease'Kharchuk ᦒ
