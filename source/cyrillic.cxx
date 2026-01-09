@@ -5,13 +5,120 @@
 #include <bitset> // bitset
 #include <cassert> // (macro) assert
 #include <codecvt> // codecvt_utf8_utf16
+#include <functional> // function
 #include <locale> // wstring_convert
 #include <string_view> // basic_string_view
-#include <utility> // move
+#include <utility> // move, pair
+// macros
+#define CLASS_VALIDATE_CRTP( Name, Type )\
+class Name : public ValidateCRTP< Name > {\
+    friend ValidateCRTP< Name >;\
+    Type data_;\
+public: Name( Type data ) : data_{ data } { }\
+private:
+
+#define CLASS_VALIDATE_GROUP( Name, Base, Init )\
+struct Name final : public Base {\
+    Name( ) : Base{ Init } { }\
+}
 
 namespace son8::cyrillic {
     // private implementation
     namespace {
+        using namespace std::string_view_literals;
+        // validate
+        using ValidateCharType = typename StringWord::value_type;
+        // -- abstract
+        struct ValidateAbstract {
+            virtual ~ValidateAbstract( ) = default;
+            virtual bool valid( ValidateCharType ) const = 0;
+        };
+        // -- crtp
+        template< typename Seed >
+        struct ValidateCRTP : public ValidateAbstract {
+            bool valid( ValidateCharType word ) const override {
+                return static_cast< Seed const * >( this )->valid_impl( word );
+            }
+        protected:
+            ValidateCRTP( ) = default;
+        };
+        using ValidateSymbolType = ValidateCharType;
+        CLASS_VALIDATE_CRTP( ValidateSymbol, ValidateSymbolType )
+            bool valid_impl( ValidateCharType word ) const
+            { return data_ == word; }
+        };
+        using ValidatePairType = std::pair< ValidateCharType, ValidateCharType >;
+        CLASS_VALIDATE_CRTP( ValidatePair, ValidatePairType )
+            bool valid_impl( ValidateCharType word ) const
+            { return data_.first == word or data_.second == word; }
+        };
+        using ValidateRangeType = ValidatePairType;
+        CLASS_VALIDATE_CRTP( ValidateRange, ValidateRangeType )
+            bool valid_impl( ValidateCharType word ) const
+            { return data_.first <= word && word <= data_.second; }
+        };
+        using ValidateListType = std::string_view;
+        CLASS_VALIDATE_CRTP( ValidateList, ValidateListType )
+            bool valid_impl( ValidateCharType word ) const
+            { return data_.find( word ) != data_.npos; }
+        };
+        using ValidateFuncType = std::function< bool ( ValidateCharType ) >;
+        CLASS_VALIDATE_CRTP( ValidateFunc, ValidateFuncType )
+            bool valid_impl( ValidateCharType word ) const
+            { return data_( word ); }
+        };
+        using ValidateExtendedType = ValidateCharType;
+        CLASS_VALIDATE_CRTP( ValidateExtended, ValidateExtendedType )
+            bool valid_impl( ValidateCharType word ) const
+            { return data_ <= word; }
+        };
+
+
+        constexpr ValidatePairType Validate_Pair_Angle{ '<', '>' };
+        constexpr ValidatePairType Validate_Pair_Curly{ '{', '}' };
+        constexpr ValidatePairType Validate_Pair_Round{ '(', ')' };
+        constexpr ValidatePairType Validate_Pair_Array{ '[', ']' };
+        constexpr ValidateRangeType Validate_Range_09{ '0', '9' };
+        constexpr ValidateRangeType Validate_Range_AZ_Upper{ 'A', 'Z' };
+        constexpr ValidateRangeType Validate_Range_AZ_Lower{ 'a', 'z' };
+        ValidateFuncType const Validate_Func_Control{ []( ValidateCharType word ) {
+            return ( 0x0Eu <= word && word <= 0x1F
+                || 0x01u <= word && word <= 0x06
+                || 0x7Fu == word  );
+        }};
+
+        CLASS_VALIDATE_GROUP( ValidateSymbolNull        , ValidateSymbol, '\0' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolSpace       , ValidateSymbol, ' ' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolUndercore   , ValidateSymbol, '_' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolGrave       , ValidateSymbol, '`' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolSingle      , ValidateSymbol, '\'' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolDouble      , ValidateSymbol, '\"' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolBackslash   , ValidateSymbol, '\\' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolAudio       , ValidateSymbol, '\a' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolBackspace   , ValidateSymbol, '\b' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolTab         , ValidateSymbol, '\t' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolNewline     , ValidateSymbol, '\n' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolVerticaltab , ValidateSymbol, '\v' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolFormfeed    , ValidateSymbol, '\f' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolReturn      , ValidateSymbol, '\r' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolHash        , ValidateSymbol, '#' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolCurrency    , ValidateSymbol, '$' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolPercent     , ValidateSymbol, '%' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolEqual       , ValidateSymbol, '=' );
+        CLASS_VALIDATE_GROUP( ValidateSymbolCommercial  , ValidateSymbol, '@' );
+        CLASS_VALIDATE_GROUP( ValidatePairAngle         , ValidatePair, Validate_Pair_Angle );
+        CLASS_VALIDATE_GROUP( ValidatePairCurly         , ValidatePair, Validate_Pair_Curly );
+        CLASS_VALIDATE_GROUP( ValidatePairRound         , ValidatePair, Validate_Pair_Round );
+        CLASS_VALIDATE_GROUP( ValidatePairArray         , ValidatePair, Validate_Pair_Array );
+        CLASS_VALIDATE_GROUP( ValidateRangeDigit        , ValidateRange, Validate_Range_09 );
+        CLASS_VALIDATE_GROUP( ValidateRangeUpper        , ValidateRange, Validate_Range_AZ_Upper );
+        CLASS_VALIDATE_GROUP( ValidateRangeLower        , ValidateRange, Validate_Range_AZ_Lower );
+        CLASS_VALIDATE_GROUP( ValidateListText          , ValidateList, "!,.:;?"sv );
+        CLASS_VALIDATE_GROUP( ValidateListBitwise       , ValidateList, "&^|~"sv );
+        CLASS_VALIDATE_GROUP( ValidateListArithmetic    , ValidateList, "*+-/"sv );
+        CLASS_VALIDATE_GROUP( ValidateFuncControl       , ValidateFunc, Validate_Func_Control );
+        CLASS_VALIDATE_GROUP( ValidateExtendedByte      , ValidateExtended, 0x80u );
+
         // state variables
         thread_local Language Language_{ Language::None };
         thread_local Error Error_{ Error::None };
@@ -142,34 +249,37 @@ namespace son8::cyrillic {
                         return true;
                     };
                     if ( 0x00u <= loop_index && loop_index <= 0x12u ) {
-                        using namespace std::string_view_literals;
                         constexpr std::string_view symbol{ "\x00\x20\x5F\x60\x27\x22\x5C\x07\x08\x09\x0A\x0B\x0C\x0D\x23\x24\x25\x3D\x40"sv };
                         static_assert( symbol.size( ) == 19 );
                         auto const index = loop_index;
                         assert( index < symbol.size( ) );
-                        if ( charLo == symbol[index] ) return append_call( charLo );
+                        ValidateSymbol v{ static_cast< ValidateCharType >( symbol[index] ) };
+                        if ( v.valid( charLo ) ) return append_call( charLo );
                         continue;
                     } else if ( 0x13u <= loop_index && loop_index <= 0x16u ) {
-                        using namespace std::string_view_literals;
                         constexpr std::string_view pair{ "\x28\x29\x3C\x3E\x5B\x5D\x7B\x7D"sv };
                         static_assert( pair.size( ) == 8 );
                         auto const index = ( loop_index - 0x13u ) * 2;
                         assert( index + 1 < pair.size( ) );
-                        if ( charLo == pair[index] || charLo == pair[index + 1] ) return append_call( charLo );
+                        ValidatePair v{ { pair[index], pair[index + 1] } };
+                        if ( v.valid( charLo ) ) return append_call( charLo );
                         continue;
                     }
                     using vf = ValidateFlags;
                     switch ( flag ) {
                     case vf::AsciiDigitRange: {
-                        if ( 0x30u <= charLo && charLo <= 0x39u ) return append_call( charLo );
+                        ValidateRangeDigit v;
+                        if ( v.valid( charLo ) ) return append_call( charLo );
                         continue;
                     }
                     case vf::AsciiUpperRange: {
-                        if ( 0x41u <= charLo && charLo <= 0x5Au ) return append_call( 'X', charLo );
+                        ValidateRangeUpper v;
+                        if ( v.valid( charLo ) ) return append_call( 'X', charLo );
                         continue;
                     }
                     case vf::AsciiLowerRange: {
-                        if ( 0x61u <= charLo && charLo <= 0x7Au ) return append_call( 'x', charLo );
+                        ValidateRangeLower v;
+                        if ( v.valid( charLo ) ) return append_call( 'x', charLo );
                         continue;
                     }
                     case vf::AsciiTextList: [[fallthrough]] ;
@@ -188,18 +298,19 @@ namespace son8::cyrillic {
                         constexpr auto arit = static_cast< vfv >( vf::AsciiArithmeticList );
                         static_assert( list.size( ) ==  1 + arit - text and text < bitw and bitw < arit );
                         auto const index = loop_index - text;
+                        ValidateList v{ list[index] };
                         auto const &l = list[index];
-                        if ( std::find( l.begin( ), l.end( ), charLo ) != l.end( ) ) return append_call( charLo );
+                        if ( v.valid( charLo ) ) return append_call( charLo );
                         continue;
                     }
                     case vf::AsciiControlBytes: {
-                        if ( 0x0Eu <= charLo && charLo <= 0x1F
-                          || 0x01u <= charLo && charLo <= 0x06
-                          || 0x7Fu == charLo  ) return append_call( charLo );
+                        ValidateFuncControl v;
+                        if ( v.valid( charLo ) ) return append_call( charLo );
                         continue;
                     }
                     case vf::AsciiExtendedBytes: {
-                        if ( charLo >= 0x80u ) return append_call( charLo );
+                        ValidateExtendedByte v;
+                        if ( v.valid( charLo ) ) return append_call( charLo );
                         continue;
                     }
                     default: {
