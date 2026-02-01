@@ -8,14 +8,168 @@
 #include <locale> // wstring_convert
 #include <string_view> // basic_string_view
 #include <utility> // move
+// macros
+#define STRUCT_VALIDATE_TAG( Name ) template< bool Append, bool Ignore > struct Name{ }
+#define METHOD_VALIDATE_CACHE_UPDATE( Name ) template< bool Append, bool Ignore > void update( Tag::Name< Append, Ignore > )
+#define METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Name, Symbol ) template< bool Append, bool Ignore > void update( Tag::Name< Append, Ignore > ) {\
+    charAppends_[Symbol] = Append;\
+    charIgnores_[Symbol] = Ignore;\
+}
+#define METHOD_VALIDATE_CACHE_UPDATE_BRACKETS( Name, Open, Close) template< bool Append, bool Ignore > void update( Tag::Name< Append, Ignore > ) {\
+    charAppends_[Open] = Append; charAppends_[Close] = Append;\
+    charIgnores_[Open] = Ignore; charIgnores_[Close] = Ignore;\
+}
+#define METHOD_VALIDATE_CACHE_UPDATE_RANGE( Name, From, Toeq ) template< bool Append, bool Ignore > void update( Tag::Name< Append, Ignore > ) {\
+    for ( auto i = From; i <= Toeq; ++i ) {\
+        charAppends_[i] = Append;\
+        charIgnores_[i] = Ignore;\
+    }\
+}
+#define CASE_VALIDATE_FLAG_TAG( Name ) case ValidateFlags::Name: ValidateFlagCache_.update( Tag::Name< Append, Ignore >{ } ); break
 
 namespace son8::cyrillic {
     // private implementation
     namespace {
+        // flag cache helper
+        namespace Tag {
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Null );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Space );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Underscore );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Gravequote );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Singlequote );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Doublequote );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Backslash );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Audio );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Backspace );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Tab );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Newline );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Verticaltab );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Formfeed );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Return );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Hash );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Currency );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Percent );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Equal );
+            STRUCT_VALIDATE_TAG( Ascii_Symbol_Commercial );
+            STRUCT_VALIDATE_TAG( Ascii_Brackets_Round );
+            STRUCT_VALIDATE_TAG( Ascii_Brackets_Angle );
+            STRUCT_VALIDATE_TAG( Ascii_Brackets_Array );
+            STRUCT_VALIDATE_TAG( Ascii_Brackets_Curly );
+            STRUCT_VALIDATE_TAG( Ascii_Range_Digit );
+            STRUCT_VALIDATE_TAG( Ascii_Range_Upper );
+            STRUCT_VALIDATE_TAG( Ascii_Range_Lower );
+            STRUCT_VALIDATE_TAG( Ascii_List_Text );
+            STRUCT_VALIDATE_TAG( Ascii_List_Bitwise );
+            STRUCT_VALIDATE_TAG( Ascii_List_Arithmetic );
+            STRUCT_VALIDATE_TAG( Ascii_Bytes_Control );
+        };
+        class CharFlagCache {
+            std::bitset< 128 > charIgnores_;
+            std::bitset< 128 > charAppends_;
+        public:
+            CharFlagCache( ) = default;
+            using f = ValidateFlags;
+            bool ignore( Unt0 byte ) const { return charIgnores_[byte]; }
+            bool append( Unt0 byte ) const { return charAppends_[byte]; }
+            void reset( ) { charIgnores_.reset(), charAppends_.reset( ); }
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Null          , 0x00u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Space         , 0x20u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Underscore    , 0x5Fu )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Gravequote    , 0x60u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Singlequote   , 0x27u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Doublequote   , 0x22u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Backslash     , 0x5Cu )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Audio         , 0x07u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Backspace     , 0x08u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Tab           , 0x09u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Newline       , 0x0Au )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Verticaltab   , 0x0Bu )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Formfeed      , 0x0Cu )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Return        , 0x0Du )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Hash          , 0x23u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Currency      , 0x24u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Percent       , 0x25u )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Equal         , 0x3Du )
+            METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Commercial    , 0x40u )
+            METHOD_VALIDATE_CACHE_UPDATE_BRACKETS( Ascii_Brackets_Round, 0x28u, 0x29u )
+            METHOD_VALIDATE_CACHE_UPDATE_BRACKETS( Ascii_Brackets_Angle, 0x3Cu, 0x3Eu )
+            METHOD_VALIDATE_CACHE_UPDATE_BRACKETS( Ascii_Brackets_Array, 0x5Bu, 0x5Du )
+            METHOD_VALIDATE_CACHE_UPDATE_BRACKETS( Ascii_Brackets_Curly, 0x7Bu, 0x7Du )
+            METHOD_VALIDATE_CACHE_UPDATE_RANGE( Ascii_Range_Digit, 0x30u, 0x39u )
+            METHOD_VALIDATE_CACHE_UPDATE_RANGE( Ascii_Range_Upper, 0x41u, 0x5Au )
+            METHOD_VALIDATE_CACHE_UPDATE_RANGE( Ascii_Range_Lower, 0x61u, 0x7Au )
+            METHOD_VALIDATE_CACHE_UPDATE( Ascii_List_Text ) {
+                for ( auto const i : { 0x21u, 0x2Cu, 0x2Eu, 0x3Au, 0x3Bu, 0x3Fu } ) {
+                    charAppends_[i] = Append;
+                    charIgnores_[i] = Ignore;
+                }
+            }
+            METHOD_VALIDATE_CACHE_UPDATE( Ascii_List_Bitwise ) {
+                for ( auto const i : { 0x26u, 0x5Eu, 0x7Cu, 0x7Eu } ) {
+                    charAppends_[i] = Append;
+                    charIgnores_[i] = Ignore;
+                }
+            }
+            METHOD_VALIDATE_CACHE_UPDATE( Ascii_List_Arithmetic ) {
+                for ( auto const i : { 0x2Au, 0x2Bu, 0x2Du, 0x2Fu } ) {
+                    charAppends_[i] = Append;
+                    charIgnores_[i] = Ignore;
+                }
+            }
+            METHOD_VALIDATE_CACHE_UPDATE( Ascii_Bytes_Control ) {
+                for ( auto const i : {  0x01u, 0x02u, 0x03u, 0x04u, 0x05u, 0x06u, 0x0Eu, 0x0Fu
+                                , 0x10u, 0x11u, 0x12u, 0x13u, 0x14u, 0x15u, 0x16u, 0x17u
+                                , 0x18u, 0x19u, 0x1Au, 0x1Bu, 0x1Cu, 0x1Du, 0x1Eu, 0x1Fu
+                                , 0x7Fu } ) {
+                    charAppends_[i] = Append;
+                    charIgnores_[i] = Ignore;
+                }
+            }
+        };
         // state variables
         thread_local Language Language_{ Language::None };
         thread_local Error Error_{ Error::None };
         thread_local Validate Validate_{ Validate::None };
+        thread_local CharFlagCache ValidateFlagCache_{ };
+        // update cache
+        template< bool Append, bool Ignore >
+        void char_flag_cache_update( ValidateFlags flag ) {
+            using f = ValidateFlags;
+            switch ( flag ) {
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Null );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Space );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Underscore );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Gravequote );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Singlequote );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Doublequote );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Backslash );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Audio );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Backspace );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Tab );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Newline );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Verticaltab );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Formfeed );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Return );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Hash );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Currency );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Percent );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Equal );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Symbol_Commercial );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Brackets_Round );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Brackets_Angle );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Brackets_Array );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Brackets_Curly );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Range_Digit );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Range_Upper );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Range_Lower );
+            CASE_VALIDATE_FLAG_TAG( Ascii_List_Text );
+            CASE_VALIDATE_FLAG_TAG( Ascii_List_Bitwise );
+            CASE_VALIDATE_FLAG_TAG( Ascii_List_Arithmetic );
+            CASE_VALIDATE_FLAG_TAG( Ascii_Bytes_Control );
+            default: {
+                assert( false && "assert should be unreacheble" ); break;
+            }}
+        }
         // global helpers
         // -- compile-time sorted check for static assert
         template< typename T >
@@ -114,98 +268,34 @@ namespace son8::cyrillic {
                 return true;
             };
             auto find_valid = [&tmp]( auto word ) -> bool {
-                // TODO implement efficient validate checking system
-                //      only process flags with ignore 0
-                //      make thread local bitfield of all flag states
-                //      that changes only on setting flag related state
                 using charType = typename Encoded::Data::value_type;
                 auto const charHi = static_cast< charType >( word >> 8u );
                 auto const charLo = static_cast< charType >( word );
                 if ( charHi ) {
-                    bool const ignore = validate_ignore{ }( ValidateFlags::WideBytes );
-                    bool const append = validate_append{ }( ValidateFlags::WideBytes );
+                    bool const ignore = validate_ignore{ }( ValidateFlags::Wide_Bytes );
+                    bool const append = validate_append{ }( ValidateFlags::Wide_Bytes );
                     if ( not ignore and not append ) return false;
                     if ( append ) {
                         tmp.push_back( charHi );
                         tmp.push_back( charLo );
                     }
                     return true;
-                }
-                for ( auto i = 0u; i < validate_flags_size( ) - 1; ++i ) {
-                    auto const loop_index = i;
-                    auto const flag = static_cast< ValidateFlags >( loop_index );
-                    if ( validate_ignore{ }( flag ) ) continue;
-                    bool const append = validate_append{ }( flag );
-                    auto append_call = [append,&tmp]( auto ...args ) -> bool {
-                        if ( not append ) return false;
-                        ( tmp.push_back( args ), ... );
-                        return true;
-                    };
-                    if ( 0x00u <= loop_index && loop_index <= 0x12u ) {
-                        using namespace std::string_view_literals;
-                        constexpr std::string_view symbol{ "\x00\x20\x5F\x60\x27\x22\x5C\x07\x08\x09\x0A\x0B\x0C\x0D\x23\x24\x25\x3D\x40"sv };
-                        static_assert( symbol.size( ) == 19 );
-                        auto const index = loop_index;
-                        assert( index < symbol.size( ) );
-                        if ( charLo == symbol[index] ) return append_call( charLo );
-                        continue;
-                    } else if ( 0x13u <= loop_index && loop_index <= 0x16u ) {
-                        using namespace std::string_view_literals;
-                        constexpr std::string_view pair{ "\x28\x29\x3C\x3E\x5B\x5D\x7B\x7D"sv };
-                        static_assert( pair.size( ) == 8 );
-                        auto const index = ( loop_index - 0x13u ) * 2;
-                        assert( index + 1 < pair.size( ) );
-                        if ( charLo == pair[index] || charLo == pair[index + 1] ) return append_call( charLo );
-                        continue;
+                } else if ( 0x80u <= charLo ) {
+                    bool const ignore = validate_ignore{ }( ValidateFlags::Ascii_Bytes_Extended );
+                    bool const append = validate_append{ }( ValidateFlags::Ascii_Bytes_Extended );
+                    if ( not ignore and not append ) return false;
+                    if ( append ) tmp.push_back( charLo );
+                    return true;
+                } else {
+                    bool const ignore = ValidateFlagCache_.ignore( charLo );
+                    bool const append = ValidateFlagCache_.append( charLo );
+                    if ( not ignore and not append ) return false;
+                    if ( append ) {
+                        if ( std::islower( charLo ) ) tmp.push_back( 'x' );
+                        else if ( std::isupper( charLo ) ) tmp.push_back( 'X' );
+                        tmp.push_back( charLo );
                     }
-                    using vf = ValidateFlags;
-                    switch ( flag ) {
-                    case vf::AsciiDigitRange: {
-                        if ( 0x30u <= charLo && charLo <= 0x39u ) return append_call( charLo );
-                        continue;
-                    }
-                    case vf::AsciiUpperRange: {
-                        if ( 0x41u <= charLo && charLo <= 0x5Au ) return append_call( 'X', charLo );
-                        continue;
-                    }
-                    case vf::AsciiLowerRange: {
-                        if ( 0x61u <= charLo && charLo <= 0x7Au ) return append_call( 'x', charLo );
-                        continue;
-                    }
-                    case vf::AsciiTextList: [[fallthrough]] ;
-                    case vf::AsciiBitwiseList: [[fallthrough]] ;
-                    case vf::AsciiArithmeticList: {
-                        using namespace std::string_view_literals;
-                        using ArrayList = std::array< StringByteView, 3 >;
-                        constexpr ArrayList list{{
-                            "\x21\x2C\x2E\x3A\x3B\x3F"sv,
-                            "\x26\x5E\x7C\x7E"sv,
-                            "\x2A\x2B\x2D\x2F"sv
-                        }};
-                        using vfv = ValidateFlagsVeiled;
-                        constexpr auto text = static_cast< vfv >( vf::AsciiTextList );
-                        constexpr auto bitw = static_cast< vfv >( vf::AsciiBitwiseList );
-                        constexpr auto arit = static_cast< vfv >( vf::AsciiArithmeticList );
-                        static_assert( list.size( ) ==  1 + arit - text and text < bitw and bitw < arit );
-                        auto const index = loop_index - text;
-                        auto const &l = list[index];
-                        if ( std::find( l.begin( ), l.end( ), charLo ) != l.end( ) ) return append_call( charLo );
-                        continue;
-                    }
-                    case vf::AsciiControlBytes: {
-                        if ( 0x0Eu <= charLo && charLo <= 0x1F
-                          || 0x01u <= charLo && charLo <= 0x06
-                          || 0x7Fu == charLo  ) return append_call( charLo );
-                        continue;
-                    }
-                    case vf::AsciiExtendedBytes: {
-                        if ( charLo >= 0x80u ) return append_call( charLo );
-                        continue;
-                    }
-                    default: {
-                        assert( flag != vf::WideBytes );
-                        return false;
-                    }}
+                    return true;
                 }
                 return true;
             };
@@ -374,6 +464,7 @@ namespace son8::cyrillic {
             if/*_*/ constexpr ( Append and not Ignore ) value |= bitHi, value &=~bitLo;
             else if constexpr ( Ignore and not Append ) value &=~bitHi, value |= bitLo;
             else value &= ~( bitHi | bitLo );
+            char_flag_cache_update< Append, Ignore >( flag );
             this_thread::state( static_cast< Validate >( value ) );
         }
         // error implementation

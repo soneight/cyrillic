@@ -18,42 +18,42 @@ namespace son8::cyrillic {
     using ValidateFlagsVeiled = Unt1;
     enum class ValidateFlags : ValidateFlagsVeiled {
         // symbol
-        AsciiNullSymbol         = 0x00u, // 00    (  \0   )
-        AsciiSpaceSymbol        = 0x01u, // 20    (       )
-        AsciiUnderscoreSymbol   = 0x02u, // 5F    (   _   )
-        AsciiGraveQuoteSymbol   = 0x03u, // 60    (   `   )
-        AsciiSingleQuoteSymbol  = 0x04u, // 27    (  \'   )
-        AsciiDoubleQuoteSymbol  = 0x05u, // 22    (  \"   )
-        AsciiBackslashSymbol    = 0x06u, // 5C    (  \\   )
-        AsciiAudioSymbol        = 0x07u, // 07    (  \a   )
-        AsciiBackspaceSymbol    = 0x08u, // 08    (  \b   )
-        AsciiTabSymbol          = 0x09u, // 09    (  \t   )
-        AsciiNewlineSymbol      = 0x0Au, // 0A    (  \n   )
-        AsciiVerticaltabSymbol  = 0x0Bu, // 0B    (  \v   )
-        AsciiFormfeedSymbol     = 0x0Cu, // 0C    (  \f   )
-        AsciiReturnSymbol       = 0x0Du, // 0D    (  \r   )
-        AsciiHashSymbol         = 0x0Eu, // 23    (   #   )
-        AsciiCurrencySymbol     = 0x0Fu, // 24    (   $   )
-        AsciiPercentSymbol      = 0x10u, // 25    (   %   )
-        AsciiEqualSymbol        = 0x11u, // 3D    (   =   )
-        AsciiCommercialSymbol   = 0x12u, // 40    (   @   )
+        Ascii_Symbol_Null       = 0x00u, // 00    (  \0   )
+        Ascii_Symbol_Space      = 0x01u, // 20    (       )
+        Ascii_Symbol_Underscore = 0x02u, // 5F    (   _   )
+        Ascii_Symbol_Gravequote = 0x03u, // 60    (   `   )
+        Ascii_Symbol_Singlequote= 0x04u, // 27    (  \'   )
+        Ascii_Symbol_Doublequote= 0x05u, // 22    (  \"   )
+        Ascii_Symbol_Backslash  = 0x06u, // 5C    (  \\   )
+        Ascii_Symbol_Audio      = 0x07u, // 07    (  \a   )
+        Ascii_Symbol_Backspace  = 0x08u, // 08    (  \b   )
+        Ascii_Symbol_Tab        = 0x09u, // 09    (  \t   )
+        Ascii_Symbol_Newline    = 0x0Au, // 0A    (  \n   )
+        Ascii_Symbol_Verticaltab= 0x0Bu, // 0B    (  \v   )
+        Ascii_Symbol_Formfeed   = 0x0Cu, // 0C    (  \f   )
+        Ascii_Symbol_Return     = 0x0Du, // 0D    (  \r   )
+        Ascii_Symbol_Hash       = 0x0Eu, // 23    (   #   )
+        Ascii_Symbol_Currency   = 0x0Fu, // 24    (   $   )
+        Ascii_Symbol_Percent    = 0x10u, // 25    (   %   )
+        Ascii_Symbol_Equal      = 0x11u, // 3D    (   =   )
+        Ascii_Symbol_Commercial = 0x12u, // 40    (   @   )
         // pair
-        AsciiRoundBracketPair   = 0x13u, // 28,29 ( ( , ) )
-        AsciiAngleBracketPair   = 0x14u, // 3C,3E ( < , > )
-        AsciiArrayBracketPair   = 0x15u, // 5B,5D ( [ , ] )
-        AsciiCurlyBracketPair   = 0x16u, // 7B,7D ( { , } )
+        Ascii_Brackets_Round     = 0x13u, // 28,29 ( ( , ) )
+        Ascii_Brackets_Angle     = 0x14u, // 3C,3E ( < , > )
+        Ascii_Brackets_Array     = 0x15u, // 5B,5D ( [ , ] )
+        Ascii_Brackets_Curly     = 0x16u, // 7B,7D ( { , } )
         // range
-        AsciiDigitRange         = 0x17u, // 30-39 ( 0 - 9 )
-        AsciiUpperRange         = 0x18u, // 41-5A ( A - Z )
-        AsciiLowerRange         = 0x19u, // 61-7A ( a - z )
+        Ascii_Range_Digit       = 0x17u, // 30-39 ( 0 - 9 )
+        Ascii_Range_Upper       = 0x18u, // 41-5A ( A - Z )
+        Ascii_Range_Lower       = 0x19u, // 61-7A ( a - z )
         // list
-        AsciiTextList           = 0x1Au, // 21,2C,2E,3A,3B,3F ( !,,,.,:,;,? )
-        AsciiBitwiseList        = 0x1Bu, // 26,5E,7C,7E ( &,^,|,~ )
-        AsciiArithmeticList     = 0x1Cu, // 2A,2B,2D,2F ( *,+,-,/ )
+        Ascii_List_Text         = 0x1Au, // 21,2C,2E,3A,3B,3F ( !,,,.,:,;,? )
+        Ascii_List_Bitwise      = 0x1Bu, // 26,5E,7C,7E ( &,^,|,~ )
+        Ascii_List_Arithmetic   = 0x1Cu, // 2A,2B,2D,2F ( *,+,-,/ )
         // bytes
-        AsciiControlBytes       = 0x1Du, //
-        AsciiExtendedBytes      = 0x1Eu, // 80-FF
-        WideBytes               = 0x1Fu, // last bit, wide-like characters
+        Ascii_Bytes_Control     = 0x1Du, //
+        Ascii_Bytes_Extended    = 0x1Eu, // 80-FF
+        Wide_Bytes              = 0x1Fu, // last bit, wide-like characters
         // IMPORTANT: must be last
         Size_
     };
