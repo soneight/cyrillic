@@ -7,7 +7,7 @@
 #include <codecvt> // codecvt_utf8_utf16
 #include <locale> // wstring_convert
 #include <string_view> // basic_string_view
-#include <utility> // move
+#include <utility> // move, pair
 // macros
 #define STRUCT_VALIDATE_TAG( Name ) template< bool Append, bool Ignore > struct Name{ }
 #define METHOD_VALIDATE_CACHE_UPDATE( Name ) template< bool Append, bool Ignore > void update( Tag::Name< Append, Ignore > )
@@ -26,7 +26,7 @@
     }\
 }
 #define CASE_VALIDATE_FLAG_TAG( Name ) case ValidateFlags::Name: ValidateFlagCache_.update( Tag::Name< Append, Ignore >{ } ); break
-
+// implementation
 namespace son8::cyrillic {
     // private implementation
     namespace {
@@ -64,13 +64,17 @@ namespace son8::cyrillic {
             STRUCT_VALIDATE_TAG( Ascii_Bytes_Control );
         };
         class CharFlagCache {
+            // aliases
+            using Pair_ = std::pair< bool, bool >;
+            // data
             std::bitset< 128 > charIgnores_;
             std::bitset< 128 > charAppends_;
         public:
             CharFlagCache( ) = default;
             using f = ValidateFlags;
-            bool ignore( Unt0 byte ) const { return charIgnores_[byte]; }
             bool append( Unt0 byte ) const { return charAppends_[byte]; }
+            bool ignore( Unt0 byte ) const { return charIgnores_[byte]; }
+            auto ai_pair( Unt0 byte ) const { return Pair_{ append( byte ), ignore( byte ) }; }
             void reset( ) { charIgnores_.reset(), charAppends_.reset( ); }
             METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Null          , 0x00u )
             METHOD_VALIDATE_CACHE_UPDATE_SYMBOL( Ascii_Symbol_Space         , 0x20u )
@@ -268,9 +272,8 @@ namespace son8::cyrillic {
                 return true;
             };
             auto find_valid = [&tmp]( auto word ) -> bool {
-                using charType = typename Encoded::Data::value_type;
-                auto const charHi = static_cast< charType >( word >> 8u );
-                auto const charLo = static_cast< charType >( word );
+                auto const charHi = static_cast< unsigned char >( word >> 8u );
+                auto const charLo = static_cast< unsigned char >( word );
                 if ( charHi ) {
                     bool const ignore = validate_ignore{ }( ValidateFlags::Wide_Bytes );
                     bool const append = validate_append{ }( ValidateFlags::Wide_Bytes );
@@ -287,12 +290,11 @@ namespace son8::cyrillic {
                     if ( append ) tmp.push_back( charLo );
                     return true;
                 } else {
-                    bool const ignore = ValidateFlagCache_.ignore( charLo );
-                    bool const append = ValidateFlagCache_.append( charLo );
+                    auto const [append,ignore] = ValidateFlagCache_.ai_pair( charLo );
                     if ( not ignore and not append ) return false;
                     if ( append ) {
-                        if ( std::islower( charLo ) ) tmp.push_back( 'x' );
-                        else if ( std::isupper( charLo ) ) tmp.push_back( 'X' );
+                        if/*_*/ ( 'a' <= charLo && charLo <= 'z' ) tmp.push_back( 'x' );
+                        else if ( 'A' <= charLo && charLo <= 'Z' ) tmp.push_back( 'X' );
                         tmp.push_back( charLo );
                     }
                     return true;
