@@ -171,7 +171,7 @@ namespace son8::cyrillic {
             CASE_VALIDATE_FLAG_TAG( Ascii_List_Arithmetic );
             CASE_VALIDATE_FLAG_TAG( Ascii_Bytes_Control );
             default: {
-                assert( false && "assert should be unreacheble" ); break;
+                assert( false && "assert should be unreachable" ); break;
             }}
         }
         // global helpers
@@ -588,4 +588,8 @@ namespace son8::cyrillic {
 
 } // namespace
 
-// Ⓒ 2025-2026 Oleg'Ease'Kharchuk ᦒ
+// Apache License 2.0
+// NO WARRANTY OF ANY KIND see <http://www.apache.org/licenses/LICENSE-2.0>
+// SPDX-License-Identifier: Apache-2.0
+// lib: `cyrillic` C++17 Reversible EruaN Romanization
+// Ⓒ Copyright (c) 2025-2026 Oleg'Ease'Kharchuk ᦒ
